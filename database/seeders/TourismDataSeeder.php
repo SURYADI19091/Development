@@ -1,9 +1,16 @@
 <?php
 
-na    /**
-     * Run the database seeder.
+    
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+
+class TourismDataSeeder extends Seeder
+{
+    /**
+     * Run the database seeds.
      */
-    public function run(): void
+public function run(): void
     {
         // Update existing tourism objects to be featured (first 3)
         \App\Models\TourismObject::limit(3)->update(['is_featured' => true]);
@@ -44,18 +51,5 @@ na    /**
         }
 
         $this->command->info('Tourism data seeded successfully!');
-    } Database\Seeders;
-
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
-
-class TourismDataSeeder extends Seeder
-{
-    /**
-     * Run the database seeds.
-     */
-    public function run(): void
-    {
-        //
     }
 }

@@ -22,6 +22,7 @@ class DatabaseSeeder extends Seeder
         
         // Seed population data
         $this->call([
+            PermissionsSeeder::class,
             PopulationDataSeeder::class,
             UmkmSeeder::class,
         ]);

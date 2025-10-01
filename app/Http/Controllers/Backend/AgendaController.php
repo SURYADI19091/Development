@@ -4,36 +4,55 @@ namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
 use App\Models\Agenda;
+use App\Traits\HasPagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class AgendaController extends Controller
 {
+    use HasPagination;
+
     public function index(Request $request)
     {
         $query = Agenda::query();
         
-        if ($request->filled('search')) {
-            $query->where('title', 'like', '%' . $request->search . '%')
-                  ->orWhere('description', 'like', '%' . $request->search . '%')
-                  ->orWhere('location', 'like', '%' . $request->search . '%');
-        }
-        
-        if ($request->filled('category')) {
-            $query->where('category', $request->category);
-        }
-        
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        
-        if ($request->filled('month')) {
-            $query->whereMonth('event_date', $request->month);
-        }
-        
-        $agendas = $query->orderBy('event_date', 'asc')->paginate(20);
-        
-        return view('backend.agenda.index', compact('agendas'));
+        // Apply search
+        $searchableFields = ['title', 'description', 'location'];
+        $query = $this->applySearch($query, $request, $searchableFields);
+
+        // Apply filters
+        $filters = [
+            'category' => 'category',
+            'status' => 'status',
+            'month' => [
+                'callback' => function ($query, $value) {
+                    return $query->whereMonth('event_date', $value);
+                }
+            ]
+        ];
+        $query = $this->applyFilters($query, $request, $filters);
+
+        // Apply sorting
+        $query = $this->applySorting($query, $request, 'event_date', 'asc');
+
+        // Paginate results
+        $agendas = $this->paginateQuery($query, $request);
+
+        // Get statistics
+        $stats = [
+            'total' => Agenda::count(),
+            'upcoming' => Agenda::where('event_date', '>=', now())->count(),
+            'this_month' => Agenda::whereMonth('event_date', now()->month)->count(),
+            'completed' => Agenda::where('status', 'completed')->count()
+        ];
+
+        // Get filter options
+        $categories = Agenda::distinct()->whereNotNull('category')->pluck('category');
+
+        // Prepare pagination info
+        $paginationInfo = $this->getPaginationInfo($agendas);
+
+        return view('backend.pages.agenda.index', compact('agendas', 'categories', 'stats', 'paginationInfo'));
     }
     
     public function create()

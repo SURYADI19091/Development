@@ -19,30 +19,25 @@ class VillageController extends Controller
     public function updateProfile(Request $request)
     {
         $request->validate([
-            'village_name' => 'required|string|max:255',
-            'village_code' => 'required|string|max:50',
+            'name' => 'required|string|max:255',
             'district' => 'required|string|max:255',
             'regency' => 'required|string|max:255',
             'province' => 'required|string|max:255',
-            'postal_code' => 'required|string|max:10',
+            'code' => 'nullable|string|max:50',
+            'postal_code' => 'nullable|string|max:10',
+            'area' => 'nullable|string|max:100',
+            'total_rw' => 'nullable|integer|min:0',
+            'total_rt' => 'nullable|integer|min:0',
+            'address' => 'nullable|string',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'website' => 'nullable|url|max:255',
-            'area' => 'nullable|numeric|min:0',
-            'population' => 'nullable|integer|min:0',
-            'family_count' => 'nullable|integer|min:0',
-            'vision' => 'nullable|string',
-            'mission' => 'nullable|string',
-            'history' => 'nullable|string',
-            'geographical_description' => 'nullable|string',
-            'north_boundary' => 'nullable|string|max:255',
-            'south_boundary' => 'nullable|string|max:255',
-            'east_boundary' => 'nullable|string|max:255',
-            'west_boundary' => 'nullable|string|max:255',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
-            'altitude' => 'nullable|numeric',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
+            'vision' => 'nullable|string',
+            'mission' => 'nullable|string',
+            'description' => 'nullable|string',
+            'history' => 'nullable|string',
         ]);
         
         $profile = VillageProfile::first();
@@ -50,20 +45,30 @@ class VillageController extends Controller
             $profile = new VillageProfile();
         }
         
-        $logoPath = $profile->logo_path;
-        if ($request->hasFile('logo')) {
-            // Delete old logo
-            if ($logoPath && Storage::disk('public')->exists($logoPath)) {
-                Storage::disk('public')->delete($logoPath);
-            }
-            $logoPath = $request->file('logo')->store('village', 'public');
-        }
+        // Map form fields to database columns
+        $profile->village_name = $request->name;
+        $profile->district = $request->district;
+        $profile->regency = $request->regency;
+        $profile->province = $request->province;
+        $profile->village_code = $request->code;
+        $profile->postal_code = $request->postal_code;
+        $profile->area_size = $request->area;
+        $profile->latitude = $request->latitude;
+        $profile->longitude = $request->longitude;
+        $profile->vision = $request->vision;
+        $profile->mission = $request->mission;
+        $profile->description = $request->description;
+        $profile->address = $request->address;
+        $profile->phone = $request->phone;
+        $profile->email = $request->email;
+        $profile->website = $request->website;
+        $profile->total_rw = $request->total_rw ?? 0;
+        $profile->total_rt = $request->total_rt ?? 0;
+        $profile->history = $request->history;
         
-        $profile->fill($request->except('logo'));
-        $profile->logo_path = $logoPath;
         $profile->save();
         
-        return redirect()->route('admin.village.profile')
+        return redirect()->route('backend.village.profile')
                          ->with('success', 'Profil desa berhasil diperbarui.');
     }
     
@@ -110,7 +115,7 @@ class VillageController extends Controller
             'is_active' => $request->boolean('is_active', true)
         ]);
         
-        return redirect()->route('admin.village.officials')
+        return redirect()->route('backend.village.officials')
                          ->with('success', 'Perangkat desa berhasil ditambahkan.');
     }
     
@@ -153,7 +158,7 @@ class VillageController extends Controller
             'is_active' => $request->boolean('is_active', true)
         ]);
         
-        return redirect()->route('admin.village.officials')
+        return redirect()->route('backend.village.officials')
                          ->with('success', 'Perangkat desa berhasil diperbarui.');
     }
     
@@ -165,7 +170,7 @@ class VillageController extends Controller
         
         $official->delete();
         
-        return redirect()->route('admin.village.officials')
-                         ->with('success', 'Perangkat desa berhasil dihapus.');
+        return redirect()->route('backend.village.officials')
+                         ->with('success', 'Perangkat desa berhasil dihapus');
     }
 }

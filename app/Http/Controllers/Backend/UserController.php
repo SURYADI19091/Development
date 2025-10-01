@@ -4,51 +4,60 @@ namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Traits\HasPagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
+    use HasPagination;
+
     public function index(Request $request)
     {
         $query = User::query();
 
-        // Search
-        if ($request->has('search') && $request->search != '') {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('email', 'like', '%' . $request->search . '%')
-                  ->orWhere('employee_id', 'like', '%' . $request->search . '%');
-            });
-        }
+        // Apply search
+        $searchableFields = ['name', 'email', 'employee_id'];
+        $query = $this->applySearch($query, $request, $searchableFields);
 
-        // Filter by role
-        if ($request->has('role') && $request->role != '') {
-            $query->where('role', $request->role);
-        }
+        // Apply filters
+        $filters = [
+            'role' => 'role',
+            'status' => [
+                'callback' => function ($query, $value) {
+                    if ($value === 'active') {
+                        return $query->where('is_active', true);
+                    } elseif ($value === 'inactive') {
+                        return $query->where('is_active', false);
+                    }
+                    return $query;
+                }
+            ]
+        ];
+        $query = $this->applyFilters($query, $request, $filters);
 
-        // Filter by status
-        if ($request->has('status')) {
-            if ($request->status == 'active') {
-                $query->where('is_active', true);
-            } elseif ($request->status == 'inactive') {
-                $query->where('is_active', false);
-            }
-        }
+        // Apply sorting
+        $query = $this->applySorting($query, $request, 'created_at', 'desc');
 
-        $users = $query->orderBy('created_at', 'desc')->paginate(15);
+        // Paginate results
+        $users = $this->paginateQuery($query, $request);
 
+        // Get statistics
         $stats = [
             'total' => User::count(),
             'active' => User::where('is_active', true)->count(),
-            'roles' => User::selectRaw('role, COUNT(*) as count')
-                          ->whereNotNull('role')
-                          ->groupBy('role')
-                          ->pluck('count', 'role'),
+            'inactive' => User::where('is_active', false)->count(),
+            'super_admin' => User::where('role', 'super_admin')->count(),
+            'admin' => User::where('role', 'admin')->count(),
+            'operator' => User::where('role', 'operator')->count(),
+            'user' => User::where('role', 'user')->count(),
         ];
 
-        return view('backend.users.index', compact('users', 'stats'));
+        // Prepare pagination info
+        $paginationInfo = $this->getPaginationInfo($users);
+
+        return view('backend.pages.users.index', compact('users', 'stats', 'paginationInfo'));
     }
 
     public function create()

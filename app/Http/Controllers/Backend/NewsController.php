@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Backend;
 use App\Http\Controllers\Controller;
 use App\Models\News;
 use App\Models\User;
+use App\Traits\HasPagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -12,36 +13,53 @@ use Illuminate\Support\Str;
 
 class NewsController extends Controller
 {
+    use HasPagination;
+
     public function index(Request $request)
     {
         $query = News::with('author');
 
-        // Search
-        if ($request->has('search') && $request->search != '') {
-            $query->where(function ($q) use ($request) {
-                $q->where('title', 'like', '%' . $request->search . '%')
-                  ->orWhere('content', 'like', '%' . $request->search . '%');
-            });
-        }
+        // Apply search
+        $searchableFields = ['title', 'content', 'author.name'];
+        $query = $this->applySearch($query, $request, $searchableFields);
 
-        // Filter by category
-        if ($request->has('category') && $request->category != '') {
-            $query->where('category', $request->category);
-        }
+        // Apply filters
+        $filters = [
+            'category' => 'category',
+            'status' => [
+                'callback' => function ($query, $value) {
+                    if ($value === 'published') {
+                        return $query->where('is_published', true);
+                    } elseif ($value === 'draft') {
+                        return $query->where('is_published', false);
+                    }
+                    return $query;
+                }
+            ]
+        ];
+        $query = $this->applyFilters($query, $request, $filters);
 
-        // Filter by status
-        if ($request->has('status')) {
-            if ($request->status == 'published') {
-                $query->where('is_published', true);
-            } elseif ($request->status == 'draft') {
-                $query->where('is_published', false);
-            }
-        }
+        // Apply sorting
+        $query = $this->applySorting($query, $request, 'created_at', 'desc');
 
-        $news = $query->orderBy('created_at', 'desc')->paginate(15);
-        $categories = News::distinct()->pluck('category');
+        // Paginate results
+        $news = $this->paginateQuery($query, $request);
 
-        return view('backend.news.index', compact('news', 'categories'));
+        // Get categories for filter
+        $categories = News::distinct()->whereNotNull('category')->pluck('category');
+
+        // Get statistics
+        $stats = [
+            'total' => News::count(),
+            'published' => News::where('is_published', true)->count(),
+            'draft' => News::where('is_published', false)->count(),
+            'this_month' => News::whereMonth('created_at', now()->month)->count()
+        ];
+
+        // Prepare pagination info
+        $paginationInfo = $this->getPaginationInfo($news);
+
+        return view('backend.pages.news.index', compact('news', 'categories', 'stats', 'paginationInfo'));
     }
 
     public function create()

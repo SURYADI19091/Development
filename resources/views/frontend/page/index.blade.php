@@ -70,33 +70,6 @@
                     @else
                         <p class="text-xs sm:text-sm opacity-75 mt-1">Sistem Informasi Desa Terpadu</p>
                     @endif
-                    @if(isset($user))
-                        <div class="flex items-center mt-2">
-                            <span class="bg-white bg-opacity-20 px-2 py-1 rounded text-xs">
-                                @switch($user->role)
-                                    @case('admin')
-                                        👑 Administrator
-                                        @break
-                                    @case('secretary')
-                                        📝 Sekretaris Desa
-                                        @break
-                                    @case('village_head')
-                                        🏛️ Kepala Desa
-                                        @break
-                                    @case('staff')
-                                        👨‍💼 Staff Desa
-                                        @break
-                                    @default
-                                        👤 User
-                                @endswitch
-                            </span>
-                            @if($user->employee_id)
-                                <span class="bg-white bg-opacity-20 px-2 py-1 rounded text-xs ml-2">
-                                    ID: {{ $user->employee_id }}
-                                </span>
-                            @endif
-                        </div>
-                    @endif
                 </div>
                 <div class="hidden sm:block">
                     @if(isset($user))

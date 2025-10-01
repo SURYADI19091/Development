@@ -17,18 +17,21 @@ class VillageOfficial extends Model
         'work_period',
         'phone',
         'email',
+        'address',
         'photo_path',
         'specialization',
         'work_area',
         'is_active',
         'start_date',
         'end_date',
+        'order',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
         'is_active' => 'boolean',
+        'order' => 'integer',
     ];
 
     public function getPositionTitleAttribute()

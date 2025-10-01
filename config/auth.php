@@ -112,4 +112,67 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Custom Authentication Settings
+    |--------------------------------------------------------------------------
+    |
+    | These settings control various aspects of the authentication system
+    | specific to this application.
+    |
+    */
+
+    // Registration settings
+    'allow_registration' => env('AUTH_ALLOW_REGISTRATION', true),
+    'registration_requires_approval' => env('AUTH_REGISTRATION_REQUIRES_APPROVAL', true),
+    'auto_activate_users' => env('AUTH_AUTO_ACTIVATE_USERS', false),
+
+    // Login security settings
+    'max_login_attempts' => env('AUTH_MAX_LOGIN_ATTEMPTS', 5),
+    'lockout_duration' => env('AUTH_LOCKOUT_DURATION', 300), // 5 minutes
+    'remember_duration' => env('AUTH_REMEMBER_DURATION', 2592000), // 30 days
+
+    // Admin IP restriction (optional)
+    'admin_allowed_ips' => env('AUTH_ADMIN_ALLOWED_IPS') ? 
+        explode(',', env('AUTH_ADMIN_ALLOWED_IPS')) : [],
+
+    // Session settings
+    'session_lifetime' => env('SESSION_LIFETIME', 120),
+    'force_logout_on_password_change' => env('AUTH_FORCE_LOGOUT_ON_PASSWORD_CHANGE', true),
+
+    // Password policy
+    'password_min_length' => env('AUTH_PASSWORD_MIN_LENGTH', 8),
+    'password_require_uppercase' => env('AUTH_PASSWORD_REQUIRE_UPPERCASE', true),
+    'password_require_lowercase' => env('AUTH_PASSWORD_REQUIRE_LOWERCASE', true),
+    'password_require_numbers' => env('AUTH_PASSWORD_REQUIRE_NUMBERS', true),
+    'password_require_symbols' => env('AUTH_PASSWORD_REQUIRE_SYMBOLS', true),
+    'password_history_limit' => env('AUTH_PASSWORD_HISTORY_LIMIT', 5),
+
+    // User roles and permissions
+    'default_role' => env('AUTH_DEFAULT_ROLE', 'user'),
+    'available_roles' => [
+        'user' => 'Regular User',
+        'member' => 'Village Member',
+        'resident' => 'Village Resident',
+        'village_officer' => 'Village Officer',
+        'population_officer' => 'Population Officer',
+        'finance_officer' => 'Finance Officer',
+        'service_officer' => 'Service Officer',
+        'cs_officer' => 'Customer Service Officer',
+        'report_officer' => 'Report Officer',
+        'editor' => 'Content Editor',
+        'moderator' => 'Content Moderator',
+        'admin' => 'Administrator',
+        'super_admin' => 'Super Administrator',
+    ],
+
+    // Account status options
+    'available_statuses' => [
+        'pending' => 'Pending Approval',
+        'active' => 'Active',
+        'inactive' => 'Inactive',
+        'suspended' => 'Suspended',
+        'banned' => 'Banned',
+    ],
+
 ];

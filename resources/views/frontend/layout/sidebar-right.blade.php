@@ -39,19 +39,6 @@
             </div>
         </div>
     </div>
-    
-    <div class="bg-green-500 text-white rounded-lg p-3 sm:p-4">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center">
-                <i class="fas fa-chart-bar mr-2 sm:mr-3 text-sm sm:text-base"></i>
-                <span class="font-semibold text-sm sm:text-base">Statistik Lainnya</span>
-            </div>
-            <div class="text-right">
-                <div class="text-lg font-bold">{{ number_format($sidebarData['other_stats']['umkm_count'] + $sidebarData['other_stats']['tourism_objects']) }}</div>
-                <div class="text-xs opacity-80">UMKM & Wisata</div>
-            </div>
-        </div>
-    </div>
 
     <!-- Village Working Hours -->
     <div class="bg-indigo-600 text-white rounded-lg p-4">
@@ -114,22 +101,18 @@
             </div>
             <div class="border-t border-blue-400 pt-2">
                 <div class="flex justify-between text-xs">
-                    <span id="weather-location">Desa Krandegan</span>
-                    <span id="weather-time">{{ date('H:i') }} WIB</span>
+                    <span id="weather-location">Desa Ciwulan, Telagsari</span>
+                    <span id="weather-time">{{ date('H:i:s') }} WIB</span>
+                </div>
+                <div class="text-center text-xs mt-1 opacity-75" id="current-date">
+                    {{ date('l, d F Y') }}
                 </div>
                 <div class="text-xs mt-1 opacity-80" id="weather-greeting">
-                    @php
-                        $hour = date('H');
-                        if ($hour < 11) {
-                            echo 'Selamat pagi! Cuaca cerah untuk beraktivitas.';
-                        } elseif ($hour < 15) {
-                            echo 'Selamat siang! Jangan lupa minum air yang cukup.';
-                        } elseif ($hour < 18) {
-                            echo 'Selamat sore! Waktu yang tepat untuk jalan-jalan.';
-                        } else {
-                            echo 'Selamat malam! Istirahat yang cukup ya.';
-                        }
-                    @endphp
+                    Memuat data cuaca...
+                </div>
+                <div class="text-xs mt-1 opacity-90" id="weather-motivation">
+                    <i class="fas fa-heart text-red-300 mr-1"></i>
+                    <span id="motivation-text">Semangat untuk hari ini! 💪</span>
                 </div>
             </div>
         </div>
@@ -262,109 +245,250 @@
         }
     }
     
-    // Update status when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        updateServiceStatus();
-        updateWeatherWidget();
+    // Real-time clock function
+    function updateRealTime() {
+        const now = new Date();
         
-        // Update status every minute
-        setInterval(updateServiceStatus, 60000);
-        // Update weather every 10 minutes
-        setInterval(updateWeatherWidget, 600000);
-    });
-    
-    // Weather Widget Function
-    function updateWeatherWidget() {
-        const weatherConditions = [
-            {
-                condition: 'cerah',
-                icon: 'fas fa-sun',
-                iconColor: 'text-yellow-300',
-                temp: Math.floor(Math.random() * 8) + 26, // 26-34°C
-                humidity: Math.floor(Math.random() * 20) + 50, // 50-70%
-                wind: Math.floor(Math.random() * 10) + 8, // 8-18 km/h
-                description: 'Cerah'
-            },
-            {
-                condition: 'berawan',
-                icon: 'fas fa-cloud',
-                iconColor: 'text-gray-200',
-                temp: Math.floor(Math.random() * 6) + 24, // 24-30°C
-                humidity: Math.floor(Math.random() * 15) + 60, // 60-75%
-                wind: Math.floor(Math.random() * 8) + 10, // 10-18 km/h
-                description: 'Berawan'
-            },
-            {
-                condition: 'hujan_ringan',
-                icon: 'fas fa-cloud-rain',
-                iconColor: 'text-blue-200',
-                temp: Math.floor(Math.random() * 4) + 22, // 22-26°C
-                humidity: Math.floor(Math.random() * 15) + 70, // 70-85%
-                wind: Math.floor(Math.random() * 10) + 12, // 12-22 km/h
-                description: 'Hujan Ringan'
-            }
-        ];
-        
-        // Get current hour to determine likely weather
-        const hour = new Date().getHours();
-        let weatherIndex = 0;
-        
-        if (hour >= 6 && hour <= 17) {
-            // Daytime - more likely to be sunny
-            weatherIndex = Math.random() > 0.3 ? 0 : (Math.random() > 0.7 ? 1 : 2);
-        } else {
-            // Evening/night - more likely to be cloudy or rainy
-            weatherIndex = Math.random() > 0.5 ? 1 : (Math.random() > 0.8 ? 0 : 2);
-        }
-        
-        const weather = weatherConditions[weatherIndex];
-        
-        // Update weather display
-        const iconElement = document.getElementById('weather-icon');
-        const tempElement = document.getElementById('weather-temp');
-        const descElement = document.getElementById('weather-desc');
-        const humidityElement = document.getElementById('weather-humidity');
-        const windElement = document.getElementById('weather-wind');
+        // Update time
         const timeElement = document.getElementById('weather-time');
-        
-        if (iconElement) iconElement.innerHTML = `<i class="${weather.icon} ${weather.iconColor}"></i>`;
-        if (tempElement) tempElement.textContent = `${weather.temp}°C`;
-        if (descElement) descElement.textContent = weather.description;
-        if (humidityElement) humidityElement.textContent = `${weather.humidity}%`;
-        if (windElement) windElement.textContent = `${weather.wind} km/h`;
         if (timeElement) {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('id-ID', { 
-                hour: '2-digit', 
-                minute: '2-digit',
+            const timeString = now.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit', 
+                second: '2-digit',
                 timeZone: 'Asia/Jakarta'
             });
             timeElement.textContent = `${timeString} WIB`;
         }
         
-        // Update greeting based on weather
-        const greetingElement = document.getElementById('weather-greeting');
-        if (greetingElement) {
-            const hour = new Date().getHours();
-            let greeting = '';
+        // Update date
+        const dateElement = document.getElementById('current-date');
+        if (dateElement) {
+            const options = {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long', 
+                day: 'numeric',
+                timeZone: 'Asia/Jakarta'
+            };
+            const dateString = now.toLocaleDateString('id-ID', options);
+            dateElement.textContent = dateString;
+        }
+    }
+    
+    // Update status when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updateServiceStatus();
+        updateWeatherWidget();
+        updateRealTime();
+        
+        // Update real-time clock every second
+        setInterval(updateRealTime, 1000);
+        // Update service status every minute  
+        setInterval(updateServiceStatus, 60000);
+        // Update weather every 10 minutes
+        setInterval(updateWeatherWidget, 600000);
+    });
+    
+    // Weather Widget Function - Real API Integration
+    function updateWeatherWidget() {
+        
+        // Coordinates for Ciuwlan, Telagsari, Banyumas (approximate)
+        const lat = -7.4781;
+        const lon = 109.2963;
+        const apiKey = 'b8c82d35dc91b9b2f7d5b4c3f1e2a8d6'; // Demo key - replace with real key
+        
+        // Try to fetch real weather data
+        fetchWeatherData(lat, lon, apiKey);
+    }
+    
+    async function fetchWeatherData(lat, lon, apiKey) {
+        try {
+            const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=id`);
             
-            if (weather.condition === 'hujan_ringan') {
-                greeting = 'Sedang hujan ringan, jangan lupa bawa payung!';
-            } else if (weather.condition === 'berawan') {
-                greeting = 'Cuaca berawan, cocok untuk aktivitas outdoor.';
-            } else {
-                if (hour < 11) {
-                    greeting = 'Selamat pagi! Cuaca cerah untuk beraktivitas.';
-                } else if (hour < 15) {
-                    greeting = 'Selamat siang! Jangan lupa minum air yang cukup.';
-                } else if (hour < 18) {
-                    greeting = 'Selamat sore! Waktu yang tepat untuk jalan-jalan.';
-                } else {
-                    greeting = 'Selamat malam! Istirahat yang cukup ya.';
-                }
+            if (!response.ok) {
+                throw new Error('API request failed');
             }
             
-            greetingElement.textContent = greeting;
+            const data = await response.json();
+            updateWeatherDisplay(data, true);
+            
+        } catch (error) {
+            console.log('Weather API failed, using fallback data');
+            // Fallback to simulated data if API fails
+            updateWeatherDisplay(null, false);
         }
+    }
+    
+    function updateWeatherDisplay(data, isRealData) {
+        let weather;
+        
+        if (isRealData && data) {
+            // Real API data
+            weather = {
+                temp: Math.round(data.main.temp),
+                humidity: data.main.humidity,
+                wind: Math.round(data.wind.speed * 3.6), // Convert m/s to km/h
+                description: capitalizeFirst(data.weather[0].description),
+                condition: data.weather[0].main.toLowerCase(),
+                icon: getWeatherIcon(data.weather[0].icon, data.weather[0].main)
+            };
+        } else {
+            // Fallback simulated data
+            const hour = new Date().getHours();
+            const weatherOptions = [
+                {
+                    temp: Math.floor(Math.random() * 8) + 26, // 26-34°C
+                    humidity: Math.floor(Math.random() * 20) + 50, // 50-70%
+                    wind: Math.floor(Math.random() * 10) + 8, // 8-18 km/h
+                    description: 'Cerah',
+                    condition: 'clear',
+                    icon: { iconClass: 'fas fa-sun', iconColor: 'text-yellow-300' }
+                },
+                {
+                    temp: Math.floor(Math.random() * 6) + 24, // 24-30°C
+                    humidity: Math.floor(Math.random() * 15) + 60, // 60-75%
+                    wind: Math.floor(Math.random() * 8) + 10, // 10-18 km/h
+                    description: 'Berawan',
+                    condition: 'clouds',
+                    icon: { iconClass: 'fas fa-cloud', iconColor: 'text-gray-200' }
+                },
+                {
+                    temp: Math.floor(Math.random() * 4) + 22, // 22-26°C
+                    humidity: Math.floor(Math.random() * 15) + 70, // 70-85%
+                    wind: Math.floor(Math.random() * 10) + 12, // 12-22 km/h
+                    description: 'Hujan Ringan',
+                    condition: 'rain',
+                    icon: { iconClass: 'fas fa-cloud-rain', iconColor: 'text-blue-200' }
+                }
+            ];
+            
+            const weatherIndex = hour >= 6 && hour <= 17 
+                ? (Math.random() > 0.3 ? 0 : (Math.random() > 0.7 ? 1 : 2))
+                : (Math.random() > 0.5 ? 1 : (Math.random() > 0.8 ? 0 : 2));
+                
+            weather = weatherOptions[weatherIndex];
+        }
+        
+        // Update weather display elements
+        const iconElement = document.getElementById('weather-icon');
+        const tempElement = document.getElementById('weather-temp');
+        const descElement = document.getElementById('weather-desc');
+        const humidityElement = document.getElementById('weather-humidity');
+        const windElement = document.getElementById('weather-wind');
+        
+        if (iconElement) iconElement.innerHTML = `<i class="${weather.icon.iconClass} ${weather.icon.iconColor}"></i>`;
+        if (tempElement) tempElement.textContent = `${weather.temp}°C`;
+        if (descElement) descElement.textContent = weather.description;
+        if (humidityElement) humidityElement.textContent = `${weather.humidity}%`;
+        if (windElement) windElement.textContent = `${weather.wind} km/h`;
+        
+        // Update greeting and motivation
+        updateWeatherGreeting(weather.condition, weather.temp);
+        updateMotivationMessage();
+    }
+    
+    function getWeatherIcon(iconCode, weatherMain) {
+        const iconMap = {
+            '01d': { iconClass: 'fas fa-sun', iconColor: 'text-yellow-300' }, // clear sky day
+            '01n': { iconClass: 'fas fa-moon', iconColor: 'text-yellow-100' }, // clear sky night
+            '02d': { iconClass: 'fas fa-cloud-sun', iconColor: 'text-yellow-200' }, // few clouds day
+            '02n': { iconClass: 'fas fa-cloud-moon', iconColor: 'text-gray-300' }, // few clouds night
+            '03d': { iconClass: 'fas fa-cloud', iconColor: 'text-gray-200' }, // scattered clouds
+            '03n': { iconClass: 'fas fa-cloud', iconColor: 'text-gray-200' },
+            '04d': { iconClass: 'fas fa-cloud', iconColor: 'text-gray-300' }, // broken clouds
+            '04n': { iconClass: 'fas fa-cloud', iconColor: 'text-gray-300' },
+            '09d': { iconClass: 'fas fa-cloud-rain', iconColor: 'text-blue-200' }, // shower rain
+            '09n': { iconClass: 'fas fa-cloud-rain', iconColor: 'text-blue-200' },
+            '10d': { iconClass: 'fas fa-cloud-sun-rain', iconColor: 'text-blue-300' }, // rain day
+            '10n': { iconClass: 'fas fa-cloud-rain', iconColor: 'text-blue-200' }, // rain night
+            '11d': { iconClass: 'fas fa-bolt', iconColor: 'text-yellow-400' }, // thunderstorm
+            '11n': { iconClass: 'fas fa-bolt', iconColor: 'text-yellow-400' },
+            '13d': { iconClass: 'fas fa-snowflake', iconColor: 'text-white' }, // snow
+            '13n': { iconClass: 'fas fa-snowflake', iconColor: 'text-white' },
+            '50d': { iconClass: 'fas fa-smog', iconColor: 'text-gray-400' }, // mist
+            '50n': { iconClass: 'fas fa-smog', iconColor: 'text-gray-400' }
+        };
+        
+        return iconMap[iconCode] || { iconClass: 'fas fa-cloud', iconColor: 'text-gray-200' };
+    }
+    
+    function updateWeatherGreeting(condition, temp) {
+        const greetingElement = document.getElementById('weather-greeting');
+        if (!greetingElement) return;
+        
+        const hour = new Date().getHours();
+        let greeting = '';
+        
+        // Base greeting by time
+        let timeGreeting = '';
+        if (hour < 11) {
+            timeGreeting = 'Selamat pagi!';
+        } else if (hour < 15) {
+            timeGreeting = 'Selamat siang!';
+        } else if (hour < 18) {
+            timeGreeting = 'Selamat sore!';
+        } else {
+            timeGreeting = 'Selamat malam!';
+        }
+        
+        // Weather-specific message
+        switch (condition) {
+            case 'rain':
+            case 'drizzle':
+                greeting = `${timeGreeting} Sedang hujan, jangan lupa payung! ☔`;
+                break;
+            case 'thunderstorm':
+                greeting = `${timeGreeting} Ada petir, tetap waspada ya! ⚡`;
+                break;
+            case 'clouds':
+                greeting = `${timeGreeting} Cuaca berawan, cocok untuk aktivitas! ☁️`;
+                break;
+            case 'clear':
+                if (temp > 30) {
+                    greeting = `${timeGreeting} Cerah tapi panas, jaga hidrasi! ☀️`;
+                } else {
+                    greeting = `${timeGreeting} Cuaca cerah, sempurna untuk beraktivitas! ☀️`;
+                }
+                break;
+            case 'mist':
+            case 'fog':
+                greeting = `${timeGreeting} Berkabut, hati-hati di jalan ya! 🌫️`;
+                break;
+            default:
+                greeting = `${timeGreeting} Cuaca cukup baik untuk beraktivitas! 🌤️`;
+        }
+        
+        greetingElement.textContent = greeting;
+    }
+    
+    function updateMotivationMessage() {
+        const motivationElement = document.getElementById('motivation-text');
+        if (!motivationElement) return;
+        
+        const motivations = [
+            "Semangat untuk hari ini! 💪",
+            "Jadilah yang terbaik hari ini! ⭐",
+            "Setiap langkah adalah progress! 🚀", 
+            "Berbuat baik untuk sesama! 🤝",
+            "Tetap optimis dan bersyukur! 🙏",
+            "Wujudkan impianmu hari ini! ✨",
+            "Spread positivity everywhere! 🌟",
+            "Be kind, be awesome! 🌈",
+            "Make today count! 🎯",
+            "Smile, you're amazing! 😊",
+            "Chase your dreams! 🦋",
+            "Stay strong, stay positive! 💎",
+            "Believe in yourself! 🌻",
+            "Create your own sunshine! ☀️",
+            "Good vibes only today! 🌺"
+        ];
+        
+        const randomMotivation = motivations[Math.floor(Math.random() * motivations.length)];
+        motivationElement.textContent = randomMotivation;
+    }
+    
+    function capitalizeFirst(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
     }
 </script>

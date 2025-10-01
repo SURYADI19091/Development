@@ -8,6 +8,7 @@ use App\Models\VillageOfficial;
 use App\Models\TourismObject;
 use App\Models\CommunityInstitution;
 use App\Models\Infrastructure;
+use App\Models\ContactMessage;
 use Illuminate\Http\Request;
 
 class ProfileController extends Controller
@@ -157,14 +158,37 @@ class ProfileController extends Controller
             'email' => 'required|email|max:255',
             'phone' => 'nullable|string|max:20',
             'subject' => 'required|string|max:255',
-            'message' => 'required|string'
+            'message' => 'required|string|min:10'
+        ], [
+            'name.required' => 'Nama lengkap wajib diisi.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'subject.required' => 'Kategori pesan wajib dipilih.',
+            'message.required' => 'Pesan wajib diisi.',
+            'message.min' => 'Pesan minimal 10 karakter.'
         ]);
         
-        // In a real application, you would save this to database or send email
-        // For now, we'll just return success
-        
-        return redirect()->route('contact')
-                         ->with('success', 'Pesan Anda berhasil dikirim. Terima kasih!');
+        try {
+            // Save contact message to database
+            ContactMessage::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'subject' => $request->subject,
+                'message' => $request->message,
+                'status' => 'unread',
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent()
+            ]);
+            
+            return redirect()->route('contact')
+                           ->with('success', 'Pesan Anda berhasil dikirim dan akan segera ditindaklanjuti. Terima kasih!');
+                           
+        } catch (\Exception $e) {
+            return redirect()->route('contact')
+                           ->with('error', 'Terjadi kesalahan saat mengirim pesan. Silakan coba lagi.')
+                           ->withInput();
+        }
     }
 
     public function geography()

@@ -5,51 +5,59 @@ namespace App\Http\Controllers\Backend;
 use App\Http\Controllers\Controller;
 use App\Models\PopulationData;
 use App\Models\Settlement;
+use App\Traits\HasPagination;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PopulationController extends Controller
 {
+    use HasPagination;
+
     public function index(Request $request)
     {
         $query = PopulationData::with('settlement');
 
-        // Search
-        if ($request->has('search') && $request->search != '') {
-            $query->where(function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->search . '%')
-                  ->orWhere('identity_card_number', 'like', '%' . $request->search . '%')
-                  ->orWhere('family_card_number', 'like', '%' . $request->search . '%');
-            });
-        }
+        // Apply search
+        $searchableFields = ['name', 'identity_card_number', 'family_card_number'];
+        $query = $this->applySearch($query, $request, $searchableFields);
 
-        // Filter by gender
-        if ($request->has('gender') && $request->gender != '') {
-            $query->where('gender', $request->gender);
-        }
+        // Apply filters
+        $filters = [
+            'gender' => 'gender',
+            'status' => 'status',
+            'settlement_id' => 'settlement_id',
+            'marital_status' => 'marital_status',
+            'religion' => 'religion'
+        ];
+        $query = $this->applyFilters($query, $request, $filters);
 
-        // Filter by settlement
-        if ($request->has('settlement_id') && $request->settlement_id != '') {
-            $query->where('settlement_id', $request->settlement_id);
-        }
+        // Apply sorting
+        $query = $this->applySorting($query, $request, 'created_at', 'desc');
 
-        // Filter by marital status
-        if ($request->has('marital_status') && $request->marital_status != '') {
-            $query->where('marital_status', $request->marital_status);
-        }
+        // Paginate results  
+        $population = $this->paginateQuery($query, $request);
 
-        $populations = $query->orderBy('name', 'asc')->paginate(20);
-        $settlements = Settlement::where('is_active', true)->get();
-
-        // Statistics
+        // Get statistics
         $stats = [
             'total' => PopulationData::count(),
             'male' => PopulationData::where('gender', 'M')->count(),
             'female' => PopulationData::where('gender', 'F')->count(),
-            'married' => PopulationData::where('marital_status', 'Married')->count(),
+            'alive' => PopulationData::where('status', 'Hidup')->count(),
+            'dead' => PopulationData::where('status', 'Mati')->count(),
+            'married' => PopulationData::whereIn('marital_status', ['Kawin', 'Married'])->count(),
+            'single' => PopulationData::whereIn('marital_status', ['Belum Kawin', 'Single'])->count()
         ];
 
-        return view('backend.population.index', compact('populations', 'settlements', 'stats'));
+        // Add households count (count distinct family_card_number)
+        $stats['households'] = PopulationData::distinct('family_card_number')->count();
+
+        // Get filter options
+        $settlements = Settlement::orderBy('name')->get();
+
+        // Prepare pagination info
+        $paginationInfo = $this->getPaginationInfo($population);
+
+        return view('backend.population.index', compact('population', 'settlements', 'stats', 'paginationInfo'));
     }
 
     public function create()
@@ -81,6 +89,9 @@ class PopulationController extends Controller
             'district' => 'required|string',
             'regency' => 'required|string',
             'province' => 'required|string',
+            'status' => 'required|in:Hidup,Mati',
+            'death_date' => 'nullable|date|required_if:status,Mati',
+            'death_cause' => 'nullable|string|max:255|required_if:status,Mati',
         ]);
 
         PopulationData::create($request->all());
@@ -127,6 +138,9 @@ class PopulationController extends Controller
             'district' => 'required|string',
             'regency' => 'required|string',
             'province' => 'required|string',
+            'status' => 'required|in:Hidup,Mati',
+            'death_date' => 'nullable|date|required_if:status,Mati',
+            'death_cause' => 'nullable|string|max:255|required_if:status,Mati',
         ]);
 
         $population->update($request->all());
@@ -147,6 +161,59 @@ class PopulationController extends Controller
     public function import()
     {
         return view('backend.population.import');
+    }
+
+    public function downloadTemplate()
+    {
+        // Create a simple CSV template
+        $headers = [
+            'serial_number',
+            'family_card_number', 
+            'identity_card_number',
+            'name',
+            'birth_place',
+            'birth_date',
+            'age',
+            'address',
+            'settlement_id',
+            'gender',
+            'marital_status',
+            'family_relationship',
+            'head_of_family',
+            'religion',
+            'occupation',
+            'residence_type',
+            'independent_family_head',
+            'district',
+            'regency',
+            'province'
+        ];
+        
+        $filename = 'population_template.csv';
+        
+        $handle = fopen('php://output', 'w');
+        
+        return response()->stream(function() use ($handle, $headers) {
+            fputcsv($handle, $headers);
+            fclose($handle);
+        }, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"'
+        ]);
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $ids = $request->input('population', []);
+        
+        if (empty($ids)) {
+            return redirect()->back()->with('error', 'No population data selected.');
+        }
+        
+        $count = PopulationData::whereIn('id', $ids)->delete();
+        
+        return redirect()->route('backend.population.index')
+                        ->with('success', "Successfully deleted {$count} population data.");
     }
 
     public function export(Request $request)

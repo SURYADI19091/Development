@@ -11,7 +11,17 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // Register custom middleware aliases
+        $middleware->alias([
+            'role' => \App\Http\Middleware\RoleMiddleware::class,
+            'gate' => \App\Http\Middleware\GateMiddleware::class,
+            'maintenance.access' => \App\Http\Middleware\MaintenanceModeMiddleware::class,
+        ]);
+
+        // Register global middleware
+        $middleware->web(append: [
+            \App\Http\Middleware\MaintenanceModeMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

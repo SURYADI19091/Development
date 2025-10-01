@@ -8,12 +8,47 @@ use App\Http\Controllers\Frontend\AgendaController;
 use App\Http\Controllers\Frontend\GalleryController;
 use App\Http\Controllers\Frontend\ServiceController;
 use App\Http\Controllers\Frontend\ProfileController;
-use App\Http\Controllers\Backend\DashboardController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Backend\UserController as BackendUserController;
 use App\Http\Controllers\Backend\PopulationController;
 use App\Http\Controllers\Backend\NewsController as BackendNewsController;
 use App\Http\Controllers\Backend\UmkmController as BackendUmkmController;
 use App\Http\Controllers\Backend\BudgetController;
+use App\Http\Controllers\Backend\ContactController;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\NewsController as AdminNewsController;
+use App\Http\Controllers\Admin\SettingsController;
+
+/*
+|--------------------------------------------------------------------------
+| Authentication Routes
+|--------------------------------------------------------------------------
+*/
+
+// Login Routes
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'authenticate'])->name('login.authenticate');
+
+// Registration Routes
+Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
+Route::post('/register', [AuthController::class, 'store'])->name('register.store');
+
+// Password Reset Routes
+Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
+Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
+Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
+Route::post('/reset-password', [AuthController::class, 'updatePassword'])->name('password.store');
+
+// Logout Route
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
+
+// Profile Routes (Authenticated Users)
+Route::middleware(['auth', 'gate:account-active'])->group(function () {
+    Route::get('/my-profile', [AuthController::class, 'profile'])->name('user.profile');
+    Route::put('/my-profile', [AuthController::class, 'updateProfile'])->name('user.profile.update');
+    Route::put('/my-profile/password', [AuthController::class, 'changePassword'])->name('user.password.change');
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -23,7 +58,6 @@ use App\Http\Controllers\Backend\BudgetController;
 
 // Home & Main Pages
 Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
 Route::get('/profil-desa', [ProfileController::class, 'index'])->name('profile');
 Route::get('/sejarah', [ProfileController::class, 'history'])->name('history');
 Route::get('/visi-misi', [ProfileController::class, 'visionMission'])->name('vision-mission');
@@ -80,14 +114,10 @@ Route::get('/apbdes/laporan', [HomeController::class, 'budgetReport'])->name('bu
 Route::get('/kontak', [ProfileController::class, 'contact'])->name('contact');
 Route::post('/kontak', [ProfileController::class, 'submitContact'])->name('contact.submit');
 
-// Authentication Routes (if needed for frontend)
-Route::get('/masuk', [HomeController::class, 'login'])->name('login');
-Route::post('/masuk', [HomeController::class, 'authenticate'])->name('authenticate');
-Route::get('/daftar', [HomeController::class, 'register'])->name('register');
-Route::post('/daftar', [HomeController::class, 'store'])->name('register.store');
-Route::get('/lupa-password', [HomeController::class, 'forgotPassword'])->name('forgot-password');
-Route::post('/lupa-password', [HomeController::class, 'sendResetLink'])->name('password.email');
-Route::post('/keluar', [HomeController::class, 'logout'])->name('logout');
+// Legacy authentication routes (redirect to new auth system)
+Route::get('/masuk', function() { return redirect()->route('login'); });
+Route::get('/daftar', function() { return redirect()->route('register'); });
+Route::get('/lupa-password', function() { return redirect()->route('password.request'); });
 
 // API Routes for AJAX calls
 Route::prefix('api')->group(function () {
@@ -110,32 +140,56 @@ Route::prefix('api')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified'])->group(function () {
+Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_admin', 'gate:access-admin-panel'])->group(function () {
     
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
     
-    // User Management
-    Route::resource('users', BackendUserController::class);
-    Route::post('users/{user}/toggle-status', [BackendUserController::class, 'toggleStatus'])->name('users.toggle-status');
+    // Permission Management
+    Route::get('/permissions', [\App\Http\Controllers\Backend\PermissionController::class, 'index'])->name('permissions.index');
+    Route::post('/permissions/role', [\App\Http\Controllers\Backend\PermissionController::class, 'updateRolePermissions'])->name('permissions.update-role');
+    Route::post('/permissions/user', [\App\Http\Controllers\Backend\PermissionController::class, 'updateUserPermissions'])->name('permissions.update-user');
+    Route::get('/permissions/test', [\App\Http\Controllers\Backend\PermissionController::class, 'testPermissions'])->name('permissions.test');
+    
+    // Legacy Permissions Test Route
+    Route::get('/test-permissions', [\App\Http\Controllers\Backend\PermissionsTestController::class, 'testPermissions'])->name('test-permissions');
+    Route::get('/system-info', [DashboardController::class, 'getSystemInfo'])->name('system-info');
+    
+    // User Management (New Admin System)
+    Route::resource('users', AdminUserController::class);
+    Route::patch('users/{user}/status', [AdminUserController::class, 'updateStatus'])->name('users.update-status');
+    Route::post('users/bulk-action', [AdminUserController::class, 'bulkAction'])->name('users.bulk-action');
+    Route::get('users-export', [AdminUserController::class, 'export'])->name('users.export');
+    Route::get('role-permissions', [AdminUserController::class, 'getRolePermissions'])->name('users.role-permissions');
+    
+    // Legacy User Management (Keep for compatibility)
+    Route::post('users/{user}/toggle-status', [BackendUserController::class, 'toggleStatus'])->name('users.toggle-status-legacy');
     Route::delete('users/{user}/force-delete', [BackendUserController::class, 'forceDelete'])->name('users.force-delete');
     
     // Population Data Management
     Route::resource('population', PopulationController::class);
+    Route::get('population/statistics', [PopulationController::class, 'statistics'])->name('population.statistics');
     Route::get('population/import/template', [PopulationController::class, 'downloadTemplate'])->name('population.template');
     Route::post('population/import', [PopulationController::class, 'import'])->name('population.import');
     Route::get('population/export', [PopulationController::class, 'export'])->name('population.export');
     Route::post('population/bulk-delete', [PopulationController::class, 'bulkDelete'])->name('population.bulk-delete');
     
-    // News Management
-    Route::resource('news', BackendNewsController::class);
-    Route::post('news/{news}/toggle-status', [BackendNewsController::class, 'toggleStatus'])->name('news.toggle-status');
+    // News Management (New Admin System)
+    Route::resource('news', AdminNewsController::class);
+    Route::patch('news/{news}/status', [AdminNewsController::class, 'updateStatus'])->name('news.update-status');
+    Route::post('news/bulk-action', [AdminNewsController::class, 'bulkAction'])->name('news.bulk-action');
+    Route::get('news-export', [AdminNewsController::class, 'export'])->name('news.export');
+    
+    // Legacy News Management (Keep for compatibility)
+    Route::post('news/{news}/toggle-status', [BackendNewsController::class, 'toggleStatus'])->name('news.toggle-status-legacy');
     Route::post('news/{news}/feature', [BackendNewsController::class, 'toggleFeatured'])->name('news.toggle-featured');
     
     // Announcements Management
-    Route::resource('announcements', BackendNewsController::class, ['as' => 'announcements']);
-    Route::post('announcements/{announcement}/toggle-status', [BackendNewsController::class, 'toggleAnnouncementStatus'])->name('announcements.toggle-status');
+    Route::resource('announcements', \App\Http\Controllers\Backend\AnnouncementController::class);
+    Route::post('announcements/{announcement}/toggle-status', [\App\Http\Controllers\Backend\AnnouncementController::class, 'toggleStatus'])->name('announcements.toggle-status');
+    Route::post('announcements/bulk-action', [\App\Http\Controllers\Backend\AnnouncementController::class, 'bulkAction'])->name('announcements.bulk-action');
+    Route::get('announcements/active', [\App\Http\Controllers\Backend\AnnouncementController::class, 'getActiveAnnouncements'])->name('announcements.active');
     
     // UMKM Management
     Route::resource('umkm', BackendUmkmController::class);
@@ -166,6 +220,14 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified'])->group(
     Route::post('letter-requests/{letterRequest}/complete', [\App\Http\Controllers\Backend\ServiceController::class, 'completeLetterRequest'])->name('letter-requests.complete');
     Route::post('letter-requests/{letterRequest}/reject', [\App\Http\Controllers\Backend\ServiceController::class, 'rejectLetterRequest'])->name('letter-requests.reject');
     
+    // Contact Message Management
+    Route::resource('contact', \App\Http\Controllers\Backend\ContactController::class)->only(['index', 'show', 'destroy']);
+    Route::get('contact/{contact}/reply', [\App\Http\Controllers\Backend\ContactController::class, 'reply'])->name('contact.reply');
+    Route::post('contact/{contact}/reply', [\App\Http\Controllers\Backend\ContactController::class, 'storeReply'])->name('contact.store-reply');
+    Route::patch('contact/{contact}/status', [\App\Http\Controllers\Backend\ContactController::class, 'updateStatus'])->name('contact.update-status');
+    Route::post('contact/bulk-action', [\App\Http\Controllers\Backend\ContactController::class, 'bulkAction'])->name('contact.bulk-action');
+    Route::get('contact-stats', [\App\Http\Controllers\Backend\ContactController::class, 'getStats'])->name('contact.stats');
+    
     // Tourism Management
     Route::resource('tourism', \App\Http\Controllers\Backend\TourismController::class);
     Route::post('tourism/{tourism}/toggle-status', [\App\Http\Controllers\Backend\TourismController::class, 'toggleStatus'])->name('tourism.toggle-status');
@@ -188,18 +250,32 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'verified'])->group(
     Route::get('reports', [DashboardController::class, 'reports'])->name('reports');
     Route::get('reports/export', [DashboardController::class, 'exportReports'])->name('reports.export');
     
-    // Settings
-    Route::get('settings', [\App\Http\Controllers\Backend\SettingController::class, 'index'])->name('settings.index');
-    Route::put('settings', [\App\Http\Controllers\Backend\SettingController::class, 'update'])->name('settings.update');
+    // Settings Management (New Admin System)
+    Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
+    Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::post('settings/test-email', [SettingsController::class, 'testEmail'])->name('settings.test-email');
+    
+    // Legacy Settings (Keep for compatibility)
+    Route::get('legacy-settings', [\App\Http\Controllers\Backend\SettingController::class, 'index'])->name('legacy-settings.index');
+    Route::put('legacy-settings', [\App\Http\Controllers\Backend\SettingController::class, 'update'])->name('legacy-settings.update');
     
     // File Management
     Route::post('upload-image', [\App\Http\Controllers\Backend\FileController::class, 'uploadImage'])->name('upload.image');
     Route::post('upload-document', [\App\Http\Controllers\Backend\FileController::class, 'uploadDocument'])->name('upload.document');
     Route::delete('delete-file/{path}', [\App\Http\Controllers\Backend\FileController::class, 'deleteFile'])->name('delete.file');
     
-    // Backup & Maintenance
-    Route::get('backup', [\App\Http\Controllers\Backend\MaintenanceController::class, 'backup'])->name('backup.index');
-    Route::post('backup/create', [\App\Http\Controllers\Backend\MaintenanceController::class, 'createBackup'])->name('backup.create');
-    Route::get('backup/download/{file}', [\App\Http\Controllers\Backend\MaintenanceController::class, 'downloadBackup'])->name('backup.download');
-    Route::delete('backup/{file}', [\App\Http\Controllers\Backend\MaintenanceController::class, 'deleteBackup'])->name('backup.delete');
+    // Backup Management (New Admin System)
+    Route::get('backup', [SettingsController::class, 'backupIndex'])->name('backup.index');
+    Route::post('backup/create', [SettingsController::class, 'createBackup'])->name('backup.create');
+    Route::delete('backup/{file}', [SettingsController::class, 'deleteBackup'])->name('backup.delete');
+    Route::get('backup/{file}/download', [SettingsController::class, 'downloadBackup'])->name('backup.download');
+    
+    // Activity Logs
+    Route::get('activity-logs', [DashboardController::class, 'activityLogs'])->name('activity-logs');
+    Route::get('logs', [DashboardController::class, 'logs'])->name('logs');
+    Route::post('logs/clear', [DashboardController::class, 'clearLogs'])->name('logs.clear');
+    
+    // Legacy Backup & Maintenance (Keep for compatibility)
+    Route::get('legacy-backup', [\App\Http\Controllers\Backend\MaintenanceController::class, 'backup'])->name('legacy-backup.index');
+    Route::post('legacy-backup/create', [\App\Http\Controllers\Backend\MaintenanceController::class, 'createBackup'])->name('legacy-backup.create');
 });

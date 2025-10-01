@@ -34,6 +34,13 @@ class VillageProfile extends Model
         'vision',
         'mission',
         'logo_path',
+        'address',
+        'phone',
+        'email',
+        'website',
+        'total_rw',
+        'total_rt',
+        'history',
     ];
 
     protected $casts = [
@@ -44,5 +51,20 @@ class VillageProfile extends Model
         'female_population' => 'integer',
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
+        'total_rw' => 'integer',
+        'total_rt' => 'integer',
     ];
+
+    /**
+     * Get formatted attributes for display
+     */
+    public function getNameAttribute()
+    {
+        return $this->village_name;
+    }
+
+    public function getCodeAttribute() 
+    {
+        return $this->village_code;
+    }
 }
