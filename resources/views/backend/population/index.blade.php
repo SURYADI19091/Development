@@ -234,7 +234,17 @@
                                                 @endif
                                             </td>
                                             <td>{{ Str::limit($person->address, 30) }}</td>
-                                            <td>{{ $person->settlement->name ?? '-' }}</td>
+                                            <td>
+                                                @if($person->settlement)
+                                                    {{ $person->settlement->name }}<br>
+                                                    <small class="text-muted">
+                                                        RT {{ $person->settlement->neighborhood_number ?? '-' }} / 
+                                                        RW {{ $person->settlement->community_number ?? '-' }}
+                                                    </small>
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
                                             <td>{{ $person->occupation ?? '-' }}</td>
                                             <td>
                                                 <div class="btn-group" role="group">

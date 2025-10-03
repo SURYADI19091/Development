@@ -33,23 +33,43 @@
                     @endif
 
                     {{-- Pagination Elements --}}
-                    @foreach ($elements as $element)
-                        {{-- "Three Dots" Separator --}}
-                        @if (is_string($element))
-                            <li class="page-item disabled"><span class="page-link">{{ $element }}</span></li>
-                        @endif
+                    @php
+                        $currentPage = $paginator->currentPage();
+                        $lastPage = $paginator->lastPage();
+                        $showPages = 5; // Number of pages to show around current page
+                        $start = max(1, $currentPage - floor($showPages / 2));
+                        $end = min($lastPage, $start + $showPages - 1);
+                        
+                        // Adjust start if we're near the end
+                        if ($end - $start + 1 < $showPages && $start > 1) {
+                            $start = max(1, $end - $showPages + 1);
+                        }
+                    @endphp
 
-                        {{-- Array Of Links --}}
-                        @if (is_array($element))
-                            @foreach ($element as $page => $url)
-                                @if ($page == $paginator->currentPage())
-                                    <li class="page-item active"><span class="page-link">{{ $page }}</span></li>
-                                @else
-                                    <li class="page-item"><a class="page-link" href="{{ $url }}">{{ $page }}</a></li>
-                                @endif
-                            @endforeach
+                    {{-- First page --}}
+                    @if ($start > 1)
+                        <li class="page-item"><a class="page-link" href="{{ $paginator->url(1) }}">1</a></li>
+                        @if ($start > 2)
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
                         @endif
-                    @endforeach
+                    @endif
+
+                    {{-- Page range --}}
+                    @for ($page = $start; $page <= $end; $page++)
+                        @if ($page == $currentPage)
+                            <li class="page-item active"><span class="page-link">{{ $page }}</span></li>
+                        @else
+                            <li class="page-item"><a class="page-link" href="{{ $paginator->url($page) }}">{{ $page }}</a></li>
+                        @endif
+                    @endfor
+
+                    {{-- Last page --}}
+                    @if ($end < $lastPage)
+                        @if ($end < $lastPage - 1)
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        @endif
+                        <li class="page-item"><a class="page-link" href="{{ $paginator->url($lastPage) }}">{{ $lastPage }}</a></li>
+                    @endif
 
                     {{-- Next Page Link --}}
                     @if ($paginator->hasMorePages())

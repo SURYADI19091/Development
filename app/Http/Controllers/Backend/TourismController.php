@@ -17,7 +17,7 @@ class TourismController extends Controller
         if ($request->filled('search')) {
             $query->where('name', 'like', '%' . $request->search . '%')
                   ->orWhere('description', 'like', '%' . $request->search . '%')
-                  ->orWhere('location', 'like', '%' . $request->search . '%');
+                  ->orWhere('address', 'like', '%' . $request->search . '%');
         }
         
         if ($request->filled('category')) {
@@ -42,9 +42,9 @@ class TourismController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'required|string',
+            'description' => 'nullable|string',
             'category' => 'required|in:alam,budaya,kuliner,edukasi,religi',
-            'location' => 'required|string|max:255',
+            'address' => 'required|string',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'facilities' => 'nullable|string',
@@ -54,7 +54,6 @@ class TourismController extends Controller
             'contact_phone' => 'nullable|string|max:20',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
-            'is_featured' => 'boolean',
             'is_active' => 'boolean'
         ]);
         
@@ -67,10 +66,9 @@ class TourismController extends Controller
         
         TourismObject::create([
             'name' => $request->name,
-            'slug' => Str::slug($request->name),
             'description' => $request->description,
             'category' => $request->category,
-            'location' => $request->location,
+            'address' => $request->address,
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'facilities' => $request->facilities,
@@ -78,13 +76,11 @@ class TourismController extends Controller
             'operating_hours' => $request->operating_hours,
             'contact_person' => $request->contact_person,
             'contact_phone' => $request->contact_phone,
-            'images' => json_encode($imagePaths),
-            'is_featured' => $request->boolean('is_featured'),
-            'is_active' => $request->boolean('is_active', true),
-            'user_id' => auth()->id()
+            'images' => $imagePaths,
+            'is_active' => $request->boolean('is_active', true)
         ]);
         
-        return redirect()->route('admin.tourism.index')
+        return redirect()->route('backend.tourism.index')
                          ->with('success', 'Objek wisata berhasil ditambahkan.');
     }
     
@@ -102,9 +98,9 @@ class TourismController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'description' => 'required|string',
+            'description' => 'nullable|string',
             'category' => 'required|in:alam,budaya,kuliner,edukasi,religi',
-            'location' => 'required|string|max:255',
+            'address' => 'required|string',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
             'facilities' => 'nullable|string',
@@ -114,11 +110,10 @@ class TourismController extends Controller
             'contact_phone' => 'nullable|string|max:20',
             'images' => 'nullable|array',
             'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
-            'is_featured' => 'boolean',
             'is_active' => 'boolean'
         ]);
         
-        $imagePaths = json_decode($tourism->images, true) ?? [];
+        $imagePaths = $tourism->images ?? [];
         
         if ($request->hasFile('images')) {
             // Delete old images
@@ -137,10 +132,9 @@ class TourismController extends Controller
         
         $tourism->update([
             'name' => $request->name,
-            'slug' => Str::slug($request->name),
             'description' => $request->description,
             'category' => $request->category,
-            'location' => $request->location,
+            'address' => $request->address,
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'facilities' => $request->facilities,
@@ -148,19 +142,18 @@ class TourismController extends Controller
             'operating_hours' => $request->operating_hours,
             'contact_person' => $request->contact_person,
             'contact_phone' => $request->contact_phone,
-            'images' => json_encode($imagePaths),
-            'is_featured' => $request->boolean('is_featured'),
+            'images' => $imagePaths,
             'is_active' => $request->boolean('is_active', true)
         ]);
         
-        return redirect()->route('admin.tourism.index')
+        return redirect()->route('backend.tourism.index')
                          ->with('success', 'Objek wisata berhasil diperbarui.');
     }
     
     public function destroy(TourismObject $tourism)
     {
         // Delete images
-        $imagePaths = json_decode($tourism->images, true) ?? [];
+        $imagePaths = $tourism->images ?? [];
         foreach ($imagePaths as $imagePath) {
             if (Storage::disk('public')->exists($imagePath)) {
                 Storage::disk('public')->delete($imagePath);
@@ -169,8 +162,8 @@ class TourismController extends Controller
         
         $tourism->delete();
         
-        return redirect()->route('admin.tourism.index')
-                         ->with('success', 'Objek wisata berhasil dihapus.');
+        return redirect()->route('backend.tourism.index')
+                         ->with('success', 'Objek wisata berhasil dihapus');
     }
     
     public function toggleStatus(TourismObject $tourism)

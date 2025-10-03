@@ -48,14 +48,14 @@
     </div>
 
     <!-- Featured Destinations -->
-    @if($featuredTourism && count($featuredTourism) > 0)
+    @if($featuredTourism && is_countable($featuredTourism) && count($featuredTourism) > 0)
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <!-- Main Featured -->
             @php $featured = $featuredTourism->first(); @endphp
             <div class="lg:col-span-2 relative bg-white rounded-lg shadow-lg overflow-hidden">
                 @php 
                     $images = is_string($featured->images) ? json_decode($featured->images, true) : $featured->images;
-                    $firstImage = is_array($images) && count($images) > 0 ? $images[0] : 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop';
+                    $firstImage = (is_array($images) && count($images) > 0) ? $images[0] : 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=400&fit=crop';
                 @endphp
                 <img src="{{ $firstImage }}" 
                      alt="{{ $featured->name }}" class="w-full h-64 object-cover">
@@ -96,7 +96,7 @@
                 <button class="dest-filter active px-4 py-2 rounded-lg text-sm font-medium transition duration-200" data-filter="all">
                     Semua
                 </button>
-                @if($tourism && count($tourism) > 0)
+                @if($tourism && is_countable($tourism) && count($tourism) > 0)
                     @php
                         $categories = $tourism->pluck('category')->unique()->sort();
                         $categoryNames = [
@@ -120,11 +120,11 @@
 
     <!-- Destination Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6" id="destination-grid">
-        @if($tourism && count($tourism) > 0)
+        @if($tourism && is_countable($tourism) && count($tourism) > 0)
             @foreach($tourism as $item)
                 @php
                     $images = is_string($item->images) ? json_decode($item->images, true) : $item->images;
-                    $firstImage = is_array($images) && count($images) > 0 ? $images[0] : 'https://images.unsplash.com/photo-1571115764595-644a1f56a55c?w=400&h=250&fit=crop';
+                    $firstImage = (is_array($images) && count($images) > 0) ? $images[0] : 'https://images.unsplash.com/photo-1571115764595-644a1f56a55c?w=400&h=250&fit=crop';
                     
                     // Category color mapping
                     $categoryColors = [

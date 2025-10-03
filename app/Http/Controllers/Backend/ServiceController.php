@@ -10,7 +10,7 @@ class ServiceController extends Controller
 {
     public function letterRequests(Request $request)
     {
-        $query = LetterRequest::with('user');
+        $query = LetterRequest::with('processor');
         
         if ($request->filled('search')) {
             $query->where('letter_type', 'like', '%' . $request->search . '%')
@@ -49,7 +49,7 @@ class ServiceController extends Controller
             'admin_notes' => $request->notes
         ]);
         
-        return redirect()->route('admin.letter-requests.index')
+        return redirect()->route('backend.letter-requests.index')
                          ->with('success', 'Permintaan surat sedang diproses.');
     }
     
@@ -67,7 +67,7 @@ class ServiceController extends Controller
             'admin_notes' => $request->notes
         ]);
         
-        return redirect()->route('admin.letter-requests.index')
+        return redirect()->route('backend.letter-requests.index')
                          ->with('success', 'Surat berhasil diselesaikan.');
     }
     
@@ -84,7 +84,7 @@ class ServiceController extends Controller
             'processed_at' => now()
         ]);
         
-        return redirect()->route('admin.letter-requests.index')
+        return redirect()->route('backend.letter-requests.index')
                          ->with('success', 'Permintaan surat ditolak.');
     }
 }

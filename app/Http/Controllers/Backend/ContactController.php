@@ -92,7 +92,7 @@ class ContactController extends Controller
         try {
             $contact->markAsReplied($request->admin_reply, Auth::id());
 
-            return redirect()->route('admin.contact.show', $contact)
+            return redirect()->route('backend.contact.show', $contact)
                            ->with('success', 'Balasan berhasil disimpan.');
         } catch (\Exception $e) {
             return back()->with('error', 'Terjadi kesalahan saat menyimpan balasan.')
@@ -175,7 +175,7 @@ class ContactController extends Controller
         try {
             $contact->delete();
 
-            return redirect()->route('admin.contact.index')
+            return redirect()->route('backend.contact.index')
                            ->with('success', 'Pesan kontak berhasil dihapus.');
         } catch (\Exception $e) {
             return back()->with('error', 'Terjadi kesalahan saat menghapus pesan.');

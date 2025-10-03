@@ -52,7 +52,7 @@
                                 <button type="submit" class="btn btn-primary">Filter</button>
                             </div>
                             <div class="col-md-3">
-                                <a href="{{ route('admin.logs') }}" class="btn btn-secondary">Clear Filters</a>
+                                <a href="{{ route('backend.logs') }}" class="btn btn-secondary">Clear Filters</a>
                             </div>
                         </div>
                     </form>
@@ -127,7 +127,7 @@
 
     function clearLogs() {
         if (confirm('Are you sure you want to clear all logs? This action cannot be undone.')) {
-            fetch('/admin/logs/clear', {
+            fetch('{{ route("backend.logs.clear") }}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

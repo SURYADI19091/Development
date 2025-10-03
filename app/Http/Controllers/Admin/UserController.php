@@ -153,11 +153,11 @@ class UserController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'User created successfully',
-                    'redirect' => route('admin.users.show', $user)
+                    'redirect' => route('backend.users.show', $user)
                 ]);
             }
 
-            return redirect()->route('admin.users.index')
+            return redirect()->route('backend.users.index')
                 ->with('success', 'User created successfully');
 
         } catch (\Exception $e) {
@@ -268,7 +268,7 @@ class UserController extends Controller
                 ]);
             }
 
-            return redirect()->route('admin.users.show', $user)
+            return redirect()->route('backend.users.show', $user)
                 ->with('success', 'User updated successfully');
 
         } catch (\Exception $e) {

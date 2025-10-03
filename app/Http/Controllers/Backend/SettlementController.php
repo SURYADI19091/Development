@@ -86,7 +86,7 @@ class SettlementController extends Controller
 
     public function show($id)
     {
-        $settlement = Settlement::withCount(['populationData', 'umkms', 'tourismObjects'])
+        $settlement = Settlement::withCount(['populationData', 'umkms'])
                                 ->findOrFail($id);
         return view('backend.settlements.show', compact('settlement'));
     }

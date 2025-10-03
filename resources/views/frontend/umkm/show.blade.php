@@ -19,7 +19,7 @@
     <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
         <div class="relative">
             @php
-                $photos = $umkm->photos ? json_decode($umkm->photos) : [];
+                $photos = $umkm->photos ? (is_string($umkm->photos) ? json_decode($umkm->photos) : $umkm->photos) : [];
                 $mainPhoto = !empty($photos) ? $photos[0] : 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=800&h=400&fit=crop';
             @endphp
             <img src="{{ $mainPhoto }}" alt="{{ $umkm->business_name }}" class="w-full h-64 md:h-80 object-cover">
@@ -353,7 +353,7 @@
             @foreach($relatedUmkm as $related)
             <div class="bg-gray-50 rounded-lg overflow-hidden hover:shadow-lg transition duration-300">
                 @php
-                    $relatedPhotos = $related->photos ? json_decode($related->photos) : [];
+                    $relatedPhotos = $related->photos ? (is_string($related->photos) ? json_decode($related->photos) : $related->photos) : [];
                     $relatedPhoto = !empty($relatedPhotos) ? $relatedPhotos[0] : 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=200&fit=crop';
                 @endphp
                 <img src="{{ $relatedPhoto }}" alt="{{ $related->business_name }}" class="w-full h-32 object-cover">

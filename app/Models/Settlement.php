@@ -49,9 +49,4 @@ class Settlement extends Model
     {
         return $this->hasMany(Umkm::class, 'settlement_id');
     }
-
-    public function tourismObjects(): HasMany
-    {
-        return $this->hasMany(TourismObject::class, 'settlement_id');
-    }
 }

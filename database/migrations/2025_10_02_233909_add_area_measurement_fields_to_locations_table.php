@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('village_officials', function (Blueprint $table) {
-            $table->text('address')->nullable()->after('email');
-            $table->integer('order')->default(1)->after('is_active');
+        Schema::table('locations', function (Blueprint $table) {
+            //
         });
     }
 
@@ -22,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('village_officials', function (Blueprint $table) {
-            $table->dropColumn(['address', 'order']);
+        Schema::table('locations', function (Blueprint $table) {
+            //
         });
     }
 };

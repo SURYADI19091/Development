@@ -7,7 +7,7 @@
 @endsection
 
 @section('page_actions')
-<a href="{{ route('admin.announcements.create') }}" class="btn btn-primary">
+<a href="{{ route('backend.announcements.create') }}" class="btn btn-primary">
     <i class="fas fa-plus"></i> Add Announcement
 </a>
 @endsection
@@ -61,7 +61,7 @@
                     </form>
 
                     <!-- Bulk Actions -->
-                    <form id="bulkActionForm" method="POST" action="{{ route('admin.announcements.bulk-action') }}">
+                    <form id="bulkActionForm" method="POST" action="{{ route('backend.announcements.bulk-action') }}">
                         @csrf
                         <div class="row mb-3">
                             <div class="col-md-3">
@@ -90,9 +90,9 @@
                                         <th>Title</th>
                                         <th>Priority</th>
                                         <th>Status</th>
-                                        <th>Start Date</th>
-                                        <th>End Date</th>
-                                        <th>Views</th>
+                                        <th>Valid From</th>
+                                        <th>Valid Until</th>
+                                        <th>Category</th>
                                         <th>Author</th>
                                         <th>Created At</th>
                                         <th>Actions</th>
@@ -126,34 +126,21 @@
                                                     {{ $announcement->is_active ? 'Active' : 'Inactive' }}
                                                 </span>
                                             </td>
-                                            <td>{{ $announcement->start_date->format('M d, Y') }}</td>
-                                            <td>{{ $announcement->end_date->format('M d, Y') }}</td>
-                                            <td>{{ number_format($announcement->views_count) }}</td>
-                                            <td>{{ $announcement->author->name }}</td>
+                                            <td>{{ $announcement->valid_from ? $announcement->valid_from->format('M d, Y') : '-' }}</td>
+                                            <td>{{ $announcement->valid_until ? $announcement->valid_until->format('M d, Y') : '-' }}</td>
+                                            <td>{{ $announcement->category ?: '-' }}</td>
+                                            <td>{{ $announcement->author ? $announcement->author->name : 'Unknown' }}</td>
                                             <td>{{ $announcement->created_at->format('M d, Y') }}</td>
                                             <td>
                                                 <div class="btn-group" role="group">
-                                                    <a href="{{ route('admin.announcements.show', $announcement->id) }}" 
+                                                    <a href="{{ route('backend.announcements.show', $announcement->id) }}" 
                                                        class="btn btn-sm btn-info" title="View">
                                                         <i class="fas fa-eye"></i>
                                                     </a>
-                                                    <a href="{{ route('admin.announcements.edit', $announcement->id) }}" 
+                                                    <a href="{{ route('backend.announcements.edit', $announcement->id) }}" 
                                                        class="btn btn-sm btn-warning" title="Edit">
                                                         <i class="fas fa-edit"></i>
                                                     </a>
-                                                    <button type="button" class="btn btn-sm btn-{{ $announcement->is_active ? 'secondary' : 'success' }}" 
-                                                            onclick="toggleStatus({{ $announcement->id }})" title="Toggle Status">
-                                                        <i class="fas fa-{{ $announcement->is_active ? 'pause' : 'play' }}"></i>
-                                                    </button>
-                                                    <form action="{{ route('admin.announcements.destroy', $announcement->id) }}" 
-                                                          method="POST" class="d-inline" 
-                                                          onsubmit="return confirm('Are you sure you want to delete this announcement?')">
-                                                        @csrf
-                                                        @method('DELETE')
-                                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete">
-                                                            <i class="fas fa-trash"></i>
-                                                        </button>
-                                                    </form>
                                                 </div>
                                             </td>
                                         </tr>
@@ -223,24 +210,80 @@
 
     // Toggle status function
     function toggleStatus(announcementId) {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (!csrfToken) {
+            alert('CSRF token not found. Please refresh the page.');
+            return;
+        }
+
         fetch(`/admin/announcements/${announcementId}/toggle-status`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                'X-CSRF-TOKEN': csrfToken.getAttribute('content')
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
-            if (data.message) {
-                toastr.success(data.message);
+            if (data.success) {
+                alert(data.message || 'Status updated successfully');
                 location.reload();
+            } else {
+                alert(data.message || 'Failed to update status');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            toastr.error('An error occurred while updating the status.');
+            alert('An error occurred while updating the status.');
         });
     }
-</script>
+
+    // Delete announcement function
+    function deleteAnnouncement(announcementId) {
+        alert('Delete function called for ID: ' + announcementId);
+        console.log('Delete function called for ID:', announcementId);
+        
+        if (confirm('Are you sure you want to delete this announcement?')) {
+            console.log('User confirmed deletion');
+            
+            // Check for CSRF token
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            if (!csrfMeta) {
+                alert('CSRF token not found. Please refresh the page.');
+                return;
+            }
+            
+            // Create a form dynamically to send DELETE request
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/admin/announcements/${announcementId}`;
+            form.style.display = 'none';
+            
+            // Add CSRF token
+            const csrfToken = document.createElement('input');
+            csrfToken.type = 'hidden';
+            csrfToken.name = '_token';
+            csrfToken.value = csrfMeta.getAttribute('content');
+            form.appendChild(csrfToken);
+            
+            // Add method spoofing for DELETE
+            const methodInput = document.createElement('input');
+            methodInput.type = 'hidden';
+            methodInput.name = '_method';
+            methodInput.value = 'DELETE';
+            form.appendChild(methodInput);
+            
+            // Append form to body and submit
+            document.body.appendChild(form);
+            console.log('Submitting delete form...');
+            form.submit();
+        } else {
+            console.log('User cancelled deletion');
+        }
+    }\n</script>
 @endpush

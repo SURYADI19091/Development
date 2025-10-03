@@ -3,430 +3,260 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\News;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
-use App\Models\News;
-use Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class NewsController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('auth');
-        $this->middleware('verified');
-    }
-
-    /**
-     * Display a listing of news
-     */
     public function index(Request $request)
     {
-        if (!Gate::allows('manage-content')) {
-            abort(403, 'Unauthorized to manage content');
-        }
+        $query = News::with('author');
 
-        $query = News::query()->with(['author']);
-
-        // Search filter
-        if ($request->filled('search')) {
+        if ($request->has('search')) {
             $search = $request->get('search');
             $query->where(function($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('content', 'like', "%{$search}%")
-                  ->orWhere('excerpt', 'like', "%{$search}%");
+                  ->orWhere('content', 'like', "%{$search}%");
             });
         }
 
-        // Status filter
-        if ($request->filled('status')) {
-            $query->where('status', $request->get('status'));
+        if ($request->has('category') && $request->category != '') {
+            $query->where('category', $request->category);
         }
 
-        // Category filter
-        if ($request->filled('category')) {
-            $query->where('category', $request->get('category'));
+        if ($request->has('status') && $request->status != '') {
+            if ($request->status == 'published') {
+                $query->where('is_published', true);
+            } else if ($request->status == 'draft') {
+                $query->where('is_published', false);
+            }
         }
 
-        $news = $query->orderBy('created_at', 'desc')->paginate(15);
-
-        // Get stats for the page
-        $stats = [
-            'total' => News::count(),
-            'published' => News::where('status', 'published')->count(),
-            'draft' => News::where('status', 'draft')->count(),
-            'total_views' => News::sum('views_count') ?? 0,
-        ];
-
-        if ($request->ajax()) {
-            return view('backend.pages.news.partials.table', compact('news'))->render();
-        }
-
-        return view('backend.pages.news.index', compact('news', 'stats'));
+        $news = $query->orderBy('created_at', 'desc')->paginate(10);
+        
+        return view('backend.pages.news.index', compact('news'));
     }
 
-    /**
-     * Show the form for creating new news
-     */
     public function create()
     {
-        if (!Gate::allows('create-content')) {
-            abort(403, 'Unauthorized to create content');
-        }
+        $categories = [
+            'kegiatan' => 'Kegiatan',
+            'kesehatan' => 'Kesehatan',
+            'ekonomi' => 'Ekonomi',
+            'infrastruktur' => 'Infrastruktur',
+            'pendidikan' => 'Pendidikan',
+            'olahraga' => 'Olahraga',
+            'lainnya' => 'Lainnya'
+        ];
 
-        return view('backend.pages.news.create');
+        return view('backend.pages.news.create', compact('categories'));
     }
 
-    /**
-     * Store a newly created news
-     */
     public function store(Request $request)
     {
-        if (!Gate::allows('create-content')) {
-            abort(403, 'Unauthorized to create content');
-        }
-
-        $validated = $request->validate([
+        $request->validate([
             'title' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:news',
+            'slug' => 'nullable|string|unique:news,slug',
             'content' => 'required|string',
-            'excerpt' => 'nullable|string|max:500',
-            'category' => 'required|string|in:pengumuman,berita,artikel,informasi',
-            'status' => 'required|string|in:draft,published,archived',
+            'category' => 'required|in:kegiatan,kesehatan,ekonomi,infrastruktur,pendidikan,olahraga,lainnya',
+            'excerpt' => 'nullable|string',
             'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'is_featured' => 'nullable|boolean',
-            'published_at' => 'nullable|date',
+            'status' => 'required|in:draft,published'
         ]);
 
-        try {
-            // Handle featured image upload
-            $featuredImagePath = null;
-            if ($request->hasFile('featured_image')) {
-                $featuredImagePath = $request->file('featured_image')->store('news', 'public');
-            }
+        $data = $request->all();
 
-            // Create news
-            $news = News::create([
-                'title' => $validated['title'],
-                'slug' => $validated['slug'],
-                'content' => $validated['content'],
-                'excerpt' => $validated['excerpt'] ?? \Str::limit(strip_tags($validated['content']), 200),
-                'category' => $validated['category'],
-                'status' => $validated['status'],
-                'featured_image' => $featuredImagePath,
-                'is_featured' => $validated['is_featured'] ?? false,
-                'published_at' => $validated['status'] === 'published' ? ($validated['published_at'] ?? now()) : null,
-                'author_id' => Auth::id(),
-            ]);
-
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'News created successfully',
-                    'redirect' => route('admin.news.show', $news)
-                ]);
-            }
-
-            return redirect()->route('admin.news.index')
-                ->with('success', 'News created successfully');
-
-        } catch (\Exception $e) {
-            \Log::error('News creation error: ' . $e->getMessage());
-            
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to create news'
-                ]);
-            }
-
-            return back()->withInput()
-                ->with('error', 'Failed to create news');
+        // Generate slug if not provided
+        if (empty($data['slug'])) {
+            $data['slug'] = Str::slug($data['title']);
         }
+
+        // Check for duplicate slug
+        $originalSlug = $data['slug'];
+        $counter = 1;
+        while (News::where('slug', $data['slug'])->exists()) {
+            $data['slug'] = $originalSlug . '-' . $counter;
+            $counter++;
+        }
+
+        // Handle image upload
+        if ($request->hasFile('featured_image')) {
+            $image = $request->file('featured_image');
+            $imageName = time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+            $imagePath = $image->storeAs('news', $imageName, 'public');
+            $data['featured_image'] = $imagePath;
+        }
+
+        // Set publish status
+        $data['is_published'] = ($request->status === 'published');
+        if ($data['is_published']) {
+            $data['published_at'] = now();
+        }
+
+        // Set author
+        $data['author_id'] = Auth::id();
+
+        $news = News::create($data);
+
+        $message = $request->status === 'published' ? 'Berita berhasil dipublikasikan!' : 'Berita berhasil disimpan sebagai draft!';
+        
+        return redirect()->route('backend.news.index')->with('success', $message);
     }
 
-    /**
-     * Display the specified news
-     */
     public function show(News $news)
     {
-        if (!Gate::allows('view-content')) {
-            abort(403, 'Unauthorized to view content');
-        }
-
         return view('backend.pages.news.show', compact('news'));
     }
 
-    /**
-     * Show the form for editing the specified news
-     */
     public function edit(News $news)
     {
-        if (!Gate::allows('edit-content')) {
-            abort(403, 'Unauthorized to edit content');
-        }
+        $categories = [
+            'kegiatan' => 'Kegiatan',
+            'kesehatan' => 'Kesehatan',
+            'ekonomi' => 'Ekonomi',
+            'infrastruktur' => 'Infrastruktur',
+            'pendidikan' => 'Pendidikan',
+            'olahraga' => 'Olahraga',
+            'lainnya' => 'Lainnya'
+        ];
 
-        return view('backend.pages.news.edit', compact('news'));
+        return view('backend.pages.news.edit', compact('news', 'categories'));
     }
 
-    /**
-     * Update the specified news
-     */
     public function update(Request $request, News $news)
     {
-        if (!Gate::allows('edit-content')) {
-            abort(403, 'Unauthorized to edit content');
-        }
-
-        $validated = $request->validate([
+        $request->validate([
             'title' => 'required|string|max:255',
-            'slug' => 'required|string|max:255|unique:news,slug,' . $news->id,
+            'slug' => 'nullable|string|unique:news,slug,' . $news->id,
             'content' => 'required|string',
-            'excerpt' => 'nullable|string|max:500',
-            'category' => 'required|string|in:pengumuman,berita,artikel,informasi',
-            'status' => 'required|string|in:draft,published,archived',
+            'category' => 'required|in:kegiatan,kesehatan,ekonomi,infrastruktur,pendidikan,olahraga,lainnya',
+            'excerpt' => 'nullable|string',
             'featured_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
-            'is_featured' => 'nullable|boolean',
-            'published_at' => 'nullable|date',
+            'status' => 'required|in:draft,published'
         ]);
 
-        try {
-            // Handle featured image upload
-            if ($request->hasFile('featured_image')) {
-                // Delete old image
-                if ($news->featured_image) {
-                    Storage::disk('public')->delete($news->featured_image);
-                }
-                $validated['featured_image'] = $request->file('featured_image')->store('news', 'public');
-            }
+        $data = $request->all();
 
-            // Update published_at based on status
-            if ($validated['status'] === 'published' && !$news->published_at) {
-                $validated['published_at'] = $validated['published_at'] ?? now();
-            } elseif ($validated['status'] !== 'published') {
-                $validated['published_at'] = null;
-            }
-
-            $news->update($validated);
-
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'News updated successfully'
-                ]);
-            }
-
-            return redirect()->route('admin.news.show', $news)
-                ->with('success', 'News updated successfully');
-
-        } catch (\Exception $e) {
-            \Log::error('News update error: ' . $e->getMessage());
-            
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to update news'
-                ]);
-            }
-
-            return back()->withInput()
-                ->with('error', 'Failed to update news');
-        }
-    }
-
-    /**
-     * Remove the specified news
-     */
-    public function destroy(News $news)
-    {
-        if (!Gate::allows('delete-content')) {
-            abort(403, 'Unauthorized to delete content');
+        // Generate slug if not provided
+        if (empty($data['slug'])) {
+            $data['slug'] = Str::slug($data['title']);
         }
 
-        try {
-            // Delete featured image if exists
+        // Handle image upload
+        if ($request->hasFile('featured_image')) {
+            // Delete old image
             if ($news->featured_image) {
                 Storage::disk('public')->delete($news->featured_image);
             }
 
-            $newsTitle = $news->title;
-            $news->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'News deleted successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('News deletion error: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete news'
-            ]);
+            $image = $request->file('featured_image');
+            $imageName = time() . '_' . Str::random(10) . '.' . $image->getClientOriginalExtension();
+            $imagePath = $image->storeAs('news', $imageName, 'public');
+            $data['featured_image'] = $imagePath;
         }
+
+        // Set publish status
+        $data['is_published'] = ($request->status === 'published');
+        if ($data['is_published'] && !$news->published_at) {
+            $data['published_at'] = now();
+        } elseif (!$data['is_published']) {
+            $data['published_at'] = null;
+        }
+
+        $news->update($data);
+
+        $message = $request->status === 'published' ? 'Berita berhasil dipublikasikan!' : 'Berita berhasil disimpan sebagai draft!';
+        
+        return redirect()->route('backend.news.index')->with('success', $message);
     }
 
-    /**
-     * Update news status
-     */
-    public function updateStatus(Request $request, News $news)
+    public function destroy(News $news)
     {
-        if (!Gate::allows('manage-content')) {
-            abort(403, 'Unauthorized to manage content status');
+        // Delete image if exists
+        if ($news->featured_image) {
+            Storage::disk('public')->delete($news->featured_image);
         }
 
-        $validated = $request->validate([
-            'status' => 'required|string|in:draft,published,archived'
-        ]);
+        $news->delete();
 
-        try {
-            $oldStatus = $news->status;
-            
-            // Set published_at when publishing
-            if ($validated['status'] === 'published' && !$news->published_at) {
-                $news->published_at = now();
-            }
-            
-            $news->update([
-                'status' => $validated['status']
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'News status updated successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            \Log::error('News status update error: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update news status'
-            ]);
-        }
+        return redirect()->route('backend.news.index')->with('success', 'Berita berhasil dihapus!');
     }
 
-    /**
-     * Bulk actions for news
-     */
     public function bulkAction(Request $request)
     {
-        if (!Gate::allows('manage-content')) {
-            abort(403, 'Unauthorized to perform bulk actions');
+        $action = $request->get('action');
+        $ids = $request->get('ids', []);
+
+        if (empty($ids)) {
+            return response()->json(['success' => false, 'message' => 'Tidak ada item yang dipilih']);
         }
 
-        $validated = $request->validate([
-            'action' => 'required|string|in:publish,unpublish,delete',
-            'news_ids' => 'required|array|min:1',
-            'news_ids.*' => 'exists:news,id'
-        ]);
-
-        try {
-            $newsItems = News::whereIn('id', $validated['news_ids'])->get();
-            $count = 0;
-
-            foreach ($newsItems as $news) {
-                switch ($validated['action']) {
-                    case 'publish':
-                        if (Gate::allows('manage-content')) {
-                            $news->update([
-                                'status' => 'published',
-                                'published_at' => $news->published_at ?? now()
-                            ]);
-                            $count++;
-                        }
-                        break;
-                    
-                    case 'unpublish':
-                        if (Gate::allows('manage-content')) {
-                            $news->update(['status' => 'draft']);
-                            $count++;
-                        }
-                        break;
-                    
-                    case 'delete':
-                        if (Gate::allows('delete-content')) {
-                            if ($news->featured_image) {
-                                Storage::disk('public')->delete($news->featured_image);
-                            }
-                            $news->delete();
-                            $count++;
-                        }
-                        break;
+        switch ($action) {
+            case 'delete':
+                $news = News::whereIn('id', $ids)->get();
+                foreach ($news as $item) {
+                    if ($item->featured_image) {
+                        Storage::disk('public')->delete($item->featured_image);
+                    }
+                    $item->delete();
                 }
-            }
+                return response()->json(['success' => true, 'message' => 'Berita berhasil dihapus']);
 
-            return response()->json([
-                'success' => true,
-                'message' => "Bulk action completed successfully on {$count} news items"
-            ]);
+            case 'publish':
+                News::whereIn('id', $ids)->update([
+                    'is_published' => true,
+                    'published_at' => now()
+                ]);
+                return response()->json(['success' => true, 'message' => 'Berita berhasil dipublikasikan']);
 
-        } catch (\Exception $e) {
-            \Log::error('Bulk action error: ' . $e->getMessage());
-            
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to perform bulk action'
-            ]);
+            case 'unpublish':
+                News::whereIn('id', $ids)->update([
+                    'is_published' => false,
+                    'published_at' => null
+                ]);
+                return response()->json(['success' => true, 'message' => 'Berita berhasil dijadikan draft']);
+
+            default:
+                return response()->json(['success' => false, 'message' => 'Aksi tidak dikenali']);
         }
     }
 
-    /**
-     * Export news data
-     */
+    public function toggleFeatured(News $news)
+    {
+        $news->update(['is_featured' => !$news->is_featured]);
+        
+        $message = $news->is_featured ? 'Berita berhasil ditandai sebagai unggulan' : 'Berita berhasil dihapus dari unggulan';
+        
+        return response()->json(['success' => true, 'message' => $message]);
+    }
+
+    public function updateStatus(Request $request, News $news)
+    {
+        $request->validate([
+            'status' => 'required|in:draft,published'
+        ]);
+
+        $data = ['is_published' => ($request->status === 'published')];
+        
+        if ($data['is_published'] && !$news->published_at) {
+            $data['published_at'] = now();
+        } elseif (!$data['is_published']) {
+            $data['published_at'] = null;
+        }
+
+        $news->update($data);
+
+        $message = $request->status === 'published' ? 'Berita berhasil dipublikasikan!' : 'Berita berhasil dijadikan draft!';
+        
+        return response()->json(['success' => true, 'message' => $message]);
+    }
+
     public function export(Request $request)
     {
-        if (!Gate::allows('export-content')) {
-            abort(403, 'Unauthorized to export news');
-        }
-
-        try {
-            $query = News::with(['author']);
-
-            // Apply filters from request
-            if ($request->filled('search')) {
-                $search = $request->get('search');
-                $query->where(function($q) use ($search) {
-                    $q->where('title', 'like', "%{$search}%")
-                      ->orWhere('content', 'like', "%{$search}%");
-                });
-            }
-
-            if ($request->filled('status')) {
-                $query->where('status', $request->get('status'));
-            }
-
-            if ($request->filled('category')) {
-                $query->where('category', $request->get('category'));
-            }
-
-            $news = $query->orderBy('created_at', 'desc')->get();
-
-            // Create CSV content
-            $csvContent = "Title,Category,Status,Author,Views,Created At,Published At\n";
-            foreach ($news as $article) {
-                $csvContent .= implode(',', [
-                    '"' . str_replace('"', '""', $article->title) . '"',
-                    '"' . str_replace('"', '""', $article->category) . '"',
-                    '"' . str_replace('"', '""', $article->status) . '"',
-                    '"' . str_replace('"', '""', $article->author->name ?? 'Unknown') . '"',
-                    '"' . ($article->views_count ?? 0) . '"',
-                    '"' . $article->created_at->format('Y-m-d H:i:s') . '"',
-                    '"' . ($article->published_at ? $article->published_at->format('Y-m-d H:i:s') : '') . '"',
-                ]) . "\n";
-            }
-
-            $filename = 'news_export_' . date('Y-m-d_H-i-s') . '.csv';
-
-            return response($csvContent)
-                ->header('Content-Type', 'text/csv')
-                ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
-
-        } catch (\Exception $e) {
-            \Log::error('Export error: ' . $e->getMessage());
-            return back()->with('error', 'Failed to export news data');
-        }
+        // Implementation for export functionality
+        return response()->json(['message' => 'Export feature coming soon']);
     }
 }

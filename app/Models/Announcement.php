@@ -13,27 +13,22 @@ class Announcement extends Model
     protected $fillable = [
         'title',
         'content',
-        'author_id',
         'priority',
+        'category',
+        'valid_from',
+        'valid_until',
         'is_active',
-        'start_date',
-        'end_date',
-        'target_audience',
-        'attachments',
-        'views_count',
+        'created_by',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'start_date' => 'date',
-        'end_date' => 'date',
-        'target_audience' => 'array',
-        'attachments' => 'array',
-        'views_count' => 'integer',
+        'valid_from' => 'date',
+        'valid_until' => 'date',
     ];
 
     public function author(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'author_id');
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

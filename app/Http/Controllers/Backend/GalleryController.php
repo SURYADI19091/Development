@@ -12,7 +12,7 @@ class GalleryController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Gallery::with('user');
+        $query = Gallery::with('uploader');
         
         if ($request->filled('search')) {
             $query->where('title', 'like', '%' . $request->search . '%')
@@ -64,7 +64,7 @@ class GalleryController extends Controller
             'user_id' => auth()->id()
         ]);
         
-        return redirect()->route('admin.gallery.index')
+        return redirect()->route('backend.gallery.index')
                          ->with('success', 'Foto berhasil ditambahkan ke galeri.');
     }
     
@@ -108,7 +108,7 @@ class GalleryController extends Controller
             'is_active' => $request->boolean('is_active', true)
         ]);
         
-        return redirect()->route('admin.gallery.index')
+        return redirect()->route('backend.gallery.index')
                          ->with('success', 'Foto galeri berhasil diperbarui.');
     }
     
@@ -120,7 +120,7 @@ class GalleryController extends Controller
         
         $gallery->delete();
         
-        return redirect()->route('admin.gallery.index')
+        return redirect()->route('backend.gallery.index')
                          ->with('success', 'Foto galeri berhasil dihapus.');
     }
     

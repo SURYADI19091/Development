@@ -43,7 +43,7 @@
             </nav>
         </div>
 
-        <form id="settings-form" action="{{ route('admin.settings.update') }}" method="POST" enctype="multipart/form-data">
+        <form id="settings-form" action="{{ route('backend.settings.update') }}" method="POST" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 
@@ -566,7 +566,7 @@
         // Show loading
         emailInput.disabled = true;
 
-        fetch(`{{ route('admin.settings.test-email') }}`, {
+        fetch(`{{ route('backend.settings.test-email') }}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -593,7 +593,7 @@
 
     function createBackup(type) {
         if (confirm(`Apakah Anda yakin ingin membuat backup ${type}?`)) {
-            fetch(`{{ route('admin.backup.create') }}`, {
+            fetch(`{{ route('backend.backup.create') }}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

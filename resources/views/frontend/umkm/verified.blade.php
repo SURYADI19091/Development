@@ -86,7 +86,7 @@
             <!-- Verified Badge -->
             <div class="relative">
                 @php
-                    $photos = $umkm->photos ? json_decode($umkm->photos) : [];
+                    $photos = $umkm->photos ? (is_string($umkm->photos) ? json_decode($umkm->photos) : $umkm->photos) : [];
                     $mainPhoto = !empty($photos) ? $photos[0] : 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=250&fit=crop';
                 @endphp
                 <img src="{{ $mainPhoto }}" 

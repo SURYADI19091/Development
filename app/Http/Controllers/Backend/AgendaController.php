@@ -43,7 +43,7 @@ class AgendaController extends Controller
             'total' => Agenda::count(),
             'upcoming' => Agenda::where('event_date', '>=', now())->count(),
             'this_month' => Agenda::whereMonth('event_date', now()->month)->count(),
-            'completed' => Agenda::where('status', 'completed')->count()
+            'completed' => Agenda::where('is_completed', true)->count()
         ];
 
         // Get filter options
@@ -75,12 +75,11 @@ class AgendaController extends Controller
             'contact_phone' => 'nullable|string|max:20',
             'max_participants' => 'nullable|integer|min:1',
             'is_public' => 'boolean',
-            'status' => 'required|in:draft,published,ongoing,completed,cancelled'
+            'is_completed' => 'boolean'
         ]);
         
         Agenda::create([
             'title' => $request->title,
-            'slug' => Str::slug($request->title),
             'description' => $request->description,
             'category' => $request->category,
             'event_date' => $request->event_date,
@@ -92,11 +91,11 @@ class AgendaController extends Controller
             'contact_phone' => $request->contact_phone,
             'max_participants' => $request->max_participants,
             'is_public' => $request->boolean('is_public', true),
-            'status' => $request->status,
-            'user_id' => auth()->id()
+            'is_completed' => $request->boolean('is_completed', false),
+            'created_by' => auth()->id()
         ]);
         
-        return redirect()->route('admin.agenda.index')
+        return redirect()->route('backend.agenda.index')
                          ->with('success', 'Agenda berhasil ditambahkan.');
     }
     
@@ -125,12 +124,11 @@ class AgendaController extends Controller
             'contact_phone' => 'nullable|string|max:20',
             'max_participants' => 'nullable|integer|min:1',
             'is_public' => 'boolean',
-            'status' => 'required|in:draft,published,ongoing,completed,cancelled'
+            'is_completed' => 'boolean'
         ]);
         
         $agenda->update([
             'title' => $request->title,
-            'slug' => Str::slug($request->title),
             'description' => $request->description,
             'category' => $request->category,
             'event_date' => $request->event_date,
@@ -142,10 +140,10 @@ class AgendaController extends Controller
             'contact_phone' => $request->contact_phone,
             'max_participants' => $request->max_participants,
             'is_public' => $request->boolean('is_public', true),
-            'status' => $request->status
+            'is_completed' => $request->boolean('is_completed', false)
         ]);
         
-        return redirect()->route('admin.agenda.index')
+        return redirect()->route('backend.agenda.index')
                          ->with('success', 'Agenda berhasil diperbarui.');
     }
     
@@ -153,22 +151,57 @@ class AgendaController extends Controller
     {
         $agenda->delete();
         
-        return redirect()->route('admin.agenda.index')
+        return redirect()->route('backend.agenda.index')
                          ->with('success', 'Agenda berhasil dihapus.');
     }
     
     public function toggleStatus(Agenda $agenda)
     {
-        $newStatus = $agenda->status === 'published' ? 'draft' : 'published';
+        $newCompleted = !$agenda->is_completed;
         
-        $agenda->update(['status' => $newStatus]);
+        $agenda->update(['is_completed' => $newCompleted]);
         
-        $statusText = $newStatus === 'published' ? 'dipublikasikan' : 'dijadikan draft';
+        $statusText = $newCompleted ? 'ditandai selesai' : 'ditandai belum selesai';
         
         return response()->json([
             'success' => true,
             'message' => "Agenda berhasil {$statusText}.",
-            'status' => $newStatus
+            'is_completed' => $newCompleted
         ]);
+    }
+    
+    public function export(Request $request)
+    {
+        // Get agendas with applied filters
+        $query = Agenda::query();
+        
+        // Apply filters from request
+        if ($request->filled('search')) {
+            $query->where(function($q) use ($request) {
+                $q->where('title', 'like', '%' . $request->search . '%')
+                  ->orWhere('description', 'like', '%' . $request->search . '%')
+                  ->orWhere('location', 'like', '%' . $request->search . '%');
+            });
+        }
+        
+        if ($request->filled('category')) {
+            $query->where('category', $request->category);
+        }
+        
+        if ($request->filled('is_completed')) {
+            $query->where('is_completed', $request->is_completed);
+        }
+        
+        if ($request->filled('month')) {
+            $query->whereMonth('event_date', $request->month);
+        }
+        
+        if ($request->filled('year')) {
+            $query->whereYear('event_date', $request->year);
+        }
+        
+        // For now, return a message indicating export functionality needs implementation
+        // You can implement Excel export using maatwebsite/excel package
+        return redirect()->back()->with('info', 'Export functionality untuk agenda akan segera tersedia. Silakan gunakan fitur pencetakan browser untuk sementara.');
     }
 }

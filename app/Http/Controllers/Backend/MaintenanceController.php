@@ -68,11 +68,11 @@ class MaintenanceController extends Controller
                     break;
             }
             
-            return redirect()->route('admin.backup.index')
+            return redirect()->route('backend.legacy-backup.index')
                            ->with('success', "Backup {$type} berhasil dibuat.");
                            
         } catch (\Exception $e) {
-            return redirect()->route('admin.backup.index')
+            return redirect()->route('backend.legacy-backup.index')
                            ->with('error', 'Gagal membuat backup: ' . $e->getMessage());
         }
     }
@@ -182,7 +182,7 @@ class MaintenanceController extends Controller
         $filepath = storage_path("app/backups/{$file}");
         
         if (!File::exists($filepath)) {
-            return redirect()->route('admin.backup.index')
+            return redirect()->route('backend.legacy-backup.index')
                            ->with('error', 'File backup tidak ditemukan.');
         }
         
@@ -202,11 +202,11 @@ class MaintenanceController extends Controller
                 File::delete($infoFile);
             }
             
-            return redirect()->route('admin.backup.index')
+            return redirect()->route('backend.legacy-backup.index')
                            ->with('success', 'Backup berhasil dihapus.');
         }
         
-        return redirect()->route('admin.backup.index')
+        return redirect()->route('backend.legacy-backup.index')
                        ->with('error', 'File backup tidak ditemukan.');
     }
     

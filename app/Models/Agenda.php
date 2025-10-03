@@ -42,7 +42,7 @@ class Agenda extends Model
     // Scopes
     public function scopePublished($query)
     {
-        return $query->where('status', 'published');
+        return $query->where('is_public', true);
     }
 
     public function scopePublic($query)

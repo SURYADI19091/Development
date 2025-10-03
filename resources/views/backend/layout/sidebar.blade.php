@@ -62,6 +62,26 @@
                 @endcan
 
                 @can('manage.village_data')
+                <li class="nav-item">
+                    <a href="{{ route('backend.settlements.index') }}" 
+                       class="nav-link {{ request()->routeIs('backend.settlements.*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-map-marked-alt"></i>
+                        <p>Data Pemukiman</p>
+                    </a>
+                </li>
+                @endcan
+
+                @can('manage.locations')
+                <li class="nav-item">
+                    <a href="{{ route('backend.locations.index') }}" 
+                       class="nav-link {{ request()->routeIs('backend.locations.*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-map-marker-alt"></i>
+                        <p>Lokasi</p>
+                    </a>
+                </li>
+                @endcan
+
+                @can('manage.village_data')
                 <li class="nav-item {{ request()->routeIs('backend.village.*') ? 'menu-open' : '' }}">
                     <a href="#" class="nav-link {{ request()->routeIs('backend.village.*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-home"></i>
@@ -185,6 +205,16 @@
                        class="nav-link {{ request()->routeIs('backend.letter-requests.*') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-file-alt"></i>
                         <p>Pengajuan Surat</p>
+                    </a>
+                </li>
+                @endcan
+
+                @can('manage.letter_templates')
+                <li class="nav-item">
+                    <a href="{{ route('backend.letter-templates.index') }}" 
+                       class="nav-link {{ request()->routeIs('backend.letter-templates.*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-file-contract"></i>
+                        <p>Template Surat</p>
                     </a>
                 </li>
                 @endcan

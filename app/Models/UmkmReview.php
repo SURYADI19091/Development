@@ -30,6 +30,15 @@ class UmkmReview extends Model
         'photos' => 'array',
     ];
 
+    // Accessor to ensure photos is always an array
+    public function getPhotosAttribute($value)
+    {
+        if (is_null($value) || $value === '') {
+            return [];
+        }
+        return is_string($value) ? json_decode($value, true) ?? [] : (is_array($value) ? $value : []);
+    }
+
     public function umkm(): BelongsTo
     {
         return $this->belongsTo(Umkm::class, 'umkm_id');

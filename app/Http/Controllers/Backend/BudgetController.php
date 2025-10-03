@@ -14,6 +14,7 @@ class BudgetController extends Controller
     {
         $query = VillageBudget::query();
         
+        // Apply filters
         if ($request->filled('year')) {
             $query->where('fiscal_year', $request->year);
         }
@@ -22,16 +23,31 @@ class BudgetController extends Controller
             $query->where('category', $request->category);
         }
         
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                  ->orWhere('category', 'like', "%{$search}%")
+                  ->orWhere('sub_category', 'like', "%{$search}%");
+            });
+        }
+        
         $budgets = $query->orderBy('fiscal_year', 'desc')
                          ->orderBy('category')
                          ->paginate(20);
         
-        // Get summary statistics
-        $currentYear = date('Y');
-        $totalBudget = VillageBudget::where('fiscal_year', $currentYear)->sum('planned_amount');
-        $totalRealized = BudgetTransaction::whereHas('budget', function($q) use ($currentYear) {
-            $q->where('fiscal_year', $currentYear);
-        })->sum('amount');
+        // Get summary statistics for current year
+        $currentYear = $request->filled('year') ? $request->year : date('Y');
+        $yearQuery = VillageBudget::where('fiscal_year', $currentYear);
+        
+        $totalBudget = $yearQuery->sum('planned_amount');
+        
+        // Calculate total realized from transactions
+        $totalRealized = 0;
+        $budgetIds = $yearQuery->pluck('id');
+        if ($budgetIds->isNotEmpty()) {
+            $totalRealized = BudgetTransaction::whereIn('budget_id', $budgetIds)->sum('amount');
+        }
         
         $summary = [
             'total_budget' => $totalBudget,
@@ -52,25 +68,24 @@ class BudgetController extends Controller
     {
         $request->validate([
             'year' => 'required|integer|min:2020|max:2030',
-            'category' => 'required|in:pendapatan,belanja_pegawai,belanja_barang,belanja_modal,belanja_sosial',
-            'sub_category' => 'required|string|max:255',
-            'description' => 'required|string',
-            'planned_amount' => 'required|numeric|min:0',
-            'source' => 'nullable|string|max:255',
-            'notes' => 'nullable|string'
+            'type' => 'required|in:income,expense',
+            'category' => 'required|string|max:255',
+            'name' => 'required|string|max:255',
+            'amount' => 'required|numeric|min:0',
+            'description' => 'nullable|string'
         ]);
         
         VillageBudget::create([
-            'fiscal_year' => $request->fiscal_year,
-            'budget_type' => $request->budget_type,
+            'fiscal_year' => $request->year,
+            'budget_type' => $request->type == 'income' ? 'pendapatan' : 'belanja',
             'category' => $request->category,
-            'sub_category' => $request->sub_category,
+            'sub_category' => $request->name,
             'description' => $request->description,
-            'planned_amount' => $request->planned_amount,
+            'planned_amount' => $request->amount,
             'created_by' => auth()->id()
         ]);
         
-        return redirect()->route('admin.budget.index')
+        return redirect()->route('backend.budget.index')
                          ->with('success', 'Anggaran berhasil ditambahkan.');
     }
     
@@ -114,7 +129,7 @@ class BudgetController extends Controller
             'planned_amount' => $request->planned_amount
         ]);
         
-        return redirect()->route('admin.budget.index')
+        return redirect()->route('backend.budget.index')
                          ->with('success', 'Anggaran berhasil diperbarui.');
     }
     
@@ -122,13 +137,13 @@ class BudgetController extends Controller
     {
         // Check if budget has transactions
         if ($budget->transactions()->count() > 0) {
-            return redirect()->route('admin.budget.index')
+            return redirect()->route('backend.budget.index')
                            ->with('error', 'Tidak dapat menghapus anggaran yang sudah memiliki transaksi.');
         }
         
         $budget->delete();
         
-        return redirect()->route('admin.budget.index')
+        return redirect()->route('backend.budget.index')
                          ->with('success', 'Anggaran berhasil dihapus.');
     }
     
@@ -161,7 +176,7 @@ class BudgetController extends Controller
         }
         
         BudgetTransaction::create([
-            'village_budget_id' => $budget->id,
+            'budget_id' => $budget->id,
             'transaction_date' => $request->transaction_date,
             'description' => $request->description,
             'amount' => $request->amount,
@@ -171,16 +186,16 @@ class BudgetController extends Controller
             'user_id' => auth()->id()
         ]);
         
-        return redirect()->route('admin.budget.transactions', $budget)
+        return redirect()->route('backend.budget.transactions', $budget)
                          ->with('success', 'Transaksi berhasil ditambahkan.');
     }
     
     public function deleteTransaction(BudgetTransaction $transaction)
     {
-        $budgetId = $transaction->village_budget_id;
+        $budgetId = $transaction->budget_id;
         $transaction->delete();
         
-        return redirect()->route('admin.budget.transactions', $budgetId)
+        return redirect()->route('backend.budget.transactions', $budgetId)
                          ->with('success', 'Transaksi berhasil dihapus.');
     }
     

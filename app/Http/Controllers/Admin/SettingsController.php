@@ -112,7 +112,7 @@ class SettingsController extends Controller
                 ]);
             }
 
-            return redirect()->route('admin.settings.index')
+            return redirect()->route('backend.settings.index')
                 ->with('success', 'Settings updated successfully');
 
         } catch (\Exception $e) {

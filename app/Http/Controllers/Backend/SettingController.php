@@ -81,7 +81,7 @@ class SettingController extends Controller
         // In a real application, you would save these to database or config files
         // For now, we'll just flash success message
         
-        return redirect()->route('admin.settings.index')
+        return redirect()->route('backend.legacy-settings.index')
                          ->with('success', 'Pengaturan berhasil disimpan.');
     }
 }

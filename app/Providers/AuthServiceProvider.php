@@ -398,6 +398,27 @@ class AuthServiceProvider extends ServiceProvider
             return $user && ($user->role === 'super_admin' || in_array($user->role, ['admin', 'service_officer']));
         });
 
+        // Letter Template Management Gates
+        Gate::define('manage.letter_templates', function (?User $user) {
+            return $user && ($user->role === 'super_admin' || in_array($user->role, ['admin']));
+        });
+
+        Gate::define('letter_templates.view', function (?User $user) {
+            return $user && ($user->role === 'super_admin' || in_array($user->role, ['admin', 'editor']));
+        });
+
+        Gate::define('letter_templates.create', function (?User $user) {
+            return $user && ($user->role === 'super_admin' || in_array($user->role, ['admin']));
+        });
+
+        Gate::define('letter_templates.edit', function (?User $user) {
+            return $user && ($user->role === 'super_admin' || in_array($user->role, ['admin']));
+        });
+
+        Gate::define('letter_templates.delete', function (?User $user) {
+            return $user && ($user->role === 'super_admin' || in_array($user->role, ['admin']));
+        });
+
         // Report Generation Gates
         Gate::define('generate-reports', function (?User $user) {
             return $user && ($user->role === 'super_admin' || in_array($user->role, ['admin', 'report_officer']));

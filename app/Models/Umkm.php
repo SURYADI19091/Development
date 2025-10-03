@@ -48,6 +48,15 @@ class Umkm extends Model
         'registered_at' => 'date',
     ];
 
+    // Accessor to ensure photos is always an array
+    public function getPhotosAttribute($value)
+    {
+        if (is_null($value) || $value === '') {
+            return [];
+        }
+        return is_string($value) ? json_decode($value, true) ?? [] : (is_array($value) ? $value : []);
+    }
+
     public function settlement(): BelongsTo
     {
         return $this->belongsTo(Settlement::class, 'settlement_id');

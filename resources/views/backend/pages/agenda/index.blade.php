@@ -41,14 +41,11 @@
                     ]
                 ],
                 [
-                    'name' => 'status',
-                    'label' => 'Semua Status',
+                    'name' => 'is_completed',
+                    'label' => 'Status Agenda',
                     'options' => [
-                        'draft' => 'Draft',
-                        'published' => 'Dipublikasi',
-                        'ongoing' => 'Berlangsung',
-                        'completed' => 'Selesai',
-                        'cancelled' => 'Dibatalkan'
+                        '0' => 'Belum Selesai',
+                        '1' => 'Sudah Selesai'
                     ]
                 ],
                 [
@@ -100,7 +97,7 @@
                 ['label' => 'Kategori', 'field' => 'category', 'sortable' => true, 'width' => '120px'],
                 ['label' => 'Tanggal & Waktu', 'field' => 'event_date', 'sortable' => true, 'width' => '180px'],
                 ['label' => 'Lokasi', 'field' => 'location', 'sortable' => false, 'width' => '150px'],
-                ['label' => 'Status', 'field' => 'status', 'sortable' => true, 'width' => '100px'],
+                ['label' => 'Status', 'field' => 'is_completed', 'sortable' => true, 'width' => '100px'],
             ],
             'actions' => [
                 [
@@ -173,13 +170,10 @@
                 </td>
                 <td>
                     <span class="badge 
-                        @if($agenda->status === 'published') badge-success
-                        @elseif($agenda->status === 'draft') badge-secondary
-                        @elseif($agenda->status === 'ongoing') badge-warning
-                        @elseif($agenda->status === 'completed') badge-primary
-                        @else badge-danger
+                        @if($agenda->is_completed) badge-success
+                        @else badge-secondary
                         @endif">
-                        {{ ucfirst($agenda->status) }}
+                        {{ $agenda->is_completed ? 'Selesai' : 'Belum Selesai' }}
                     </span>
                 </td>
             @endforeach
@@ -195,7 +189,7 @@ function exportAgenda() {
 
 function deleteAgenda(id) {
     if (confirm('Apakah Anda yakin ingin menghapus agenda ini?')) {
-        fetch(`{{ route('backend.agenda.destroy', '') }}/${id}`, {
+        fetch(`{{ url('admin/agenda') }}/${id}`, {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,

@@ -11,34 +11,39 @@ class LetterRequest extends Model
     use HasFactory;
 
     protected $fillable = [
-        'applicant_name',
-        'applicant_nik',
-        'applicant_address',
-        'applicant_phone',
-        'applicant_email',
+        'request_number',
         'letter_type',
+        'custom_letter_type',
+        'full_name',
+        'nik',
+        'birth_place',
+        'birth_date',
+        'gender',
+        'religion',
+        'marital_status',
+        'occupation',
+        'address',
+        'rt',
+        'rw',
+        'phone',
+        'email',
         'purpose',
-        'additional_data',
-        'requested_date',
-        'processed_by',
-        'approved_by',
+        'ktp_file_path',
+        'kk_file_path',
+        'other_files',
         'status',
+        'processed_by',
+        'processed_at',
+        'completion_date',
         'notes',
-        'attachments',
-        'completed_date',
-        'letter_number',
-        'fee_amount',
-        'payment_status',
     ];
 
     protected $casts = [
-        'additional_data' => 'array',
-        'requested_date' => 'date',
+        'birth_date' => 'date',
+        'processed_at' => 'datetime',
+        'completion_date' => 'date',
         'processed_by' => 'integer',
-        'approved_by' => 'integer',
-        'attachments' => 'array',
-        'completed_date' => 'date',
-        'fee_amount' => 'decimal:2',
+        'other_files' => 'array',
     ];
 
     public function processor(): BelongsTo
@@ -46,8 +51,9 @@ class LetterRequest extends Model
         return $this->belongsTo(User::class, 'processed_by');
     }
 
-    public function approver(): BelongsTo
+    // Alias untuk kompatibilitas dengan controller yang menggunakan $request->user
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'approved_by');
+        return $this->processor();
     }
 }

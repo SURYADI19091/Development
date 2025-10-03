@@ -75,7 +75,17 @@
                             </li>
                             <li class="list-group-item">
                                 <b>RT/RW</b> 
-                                <span class="float-right">{{ $population->settlement->name ?? 'Tidak ada' }}</span>
+                                <span class="float-right">
+                                    @if($population->settlement)
+                                        {{ $population->settlement->name }}<br>
+                                        <small class="text-muted">
+                                            RT {{ $population->settlement->neighborhood_number ?? '-' }} / 
+                                            RW {{ $population->settlement->community_number ?? '-' }}
+                                        </small>
+                                    @else
+                                        Tidak ada
+                                    @endif
+                                </span>
                             </li>
                         </ul>
 
@@ -248,6 +258,11 @@
                                                         <i class="fas fa-home mr-1"></i>
                                                         {{ $population->settlement->name }}
                                                     </span>
+                                                    <br><br>
+                                                    <small class="text-muted">
+                                                        <strong>RT:</strong> {{ $population->settlement->neighborhood_number ?? '-' }} &nbsp;&nbsp;
+                                                        <strong>RW:</strong> {{ $population->settlement->community_number ?? '-' }}
+                                                    </small>
                                                 @else
                                                     <span class="badge badge-secondary px-3 py-2">Tidak ada</span>
                                                 @endif

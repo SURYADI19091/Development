@@ -8,6 +8,7 @@ use App\Http\Controllers\Frontend\AgendaController;
 use App\Http\Controllers\Frontend\GalleryController;
 use App\Http\Controllers\Frontend\ServiceController;
 use App\Http\Controllers\Frontend\ProfileController;
+use App\Http\Controllers\Frontend\LetterRequestController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Backend\UserController as BackendUserController;
 use App\Http\Controllers\Backend\PopulationController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Backend\NewsController as BackendNewsController;
 use App\Http\Controllers\Backend\UmkmController as BackendUmkmController;
 use App\Http\Controllers\Backend\BudgetController;
 use App\Http\Controllers\Backend\ContactController;
+use App\Http\Controllers\Backend\SettlementController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
@@ -85,8 +87,8 @@ Route::get('/umkm/kategori/{category}', [UmkmController::class, 'category'])->na
 
 // Services
 Route::get('/layanan-surat', [ServiceController::class, 'letters'])->name('services.letters');
-Route::get('/pengajuan-surat', [ServiceController::class, 'letterRequest'])->name('services.letter-request');
-Route::post('/pengajuan-surat', [ServiceController::class, 'submitLetterRequest'])->name('services.submit-letter');
+Route::get('/pengajuan-surat', [LetterRequestController::class, 'create'])->name('services.letter-request');
+Route::post('/pengajuan-surat', [LetterRequestController::class, 'store'])->name('frontend.letter-request.store');
 
 // Gallery
 Route::get('/galeri', [GalleryController::class, 'index'])->name('gallery.index');
@@ -175,6 +177,15 @@ Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_
     Route::get('population/export', [PopulationController::class, 'export'])->name('population.export');
     Route::post('population/bulk-delete', [PopulationController::class, 'bulkDelete'])->name('population.bulk-delete');
     
+    // Settlement Management
+    Route::resource('settlements', SettlementController::class);
+    Route::post('settlements/{settlement}/toggle-status', [SettlementController::class, 'toggleStatus'])->name('settlements.toggle-status');
+    
+    // Location Management
+    Route::resource('locations', \App\Http\Controllers\Backend\LocationController::class);
+    Route::post('locations/{location}/toggle-status', [\App\Http\Controllers\Backend\LocationController::class, 'toggleStatus'])->name('locations.toggle-status');
+    Route::get('locations/export', [\App\Http\Controllers\Backend\LocationController::class, 'export'])->name('locations.export');
+    
     // News Management (New Admin System)
     Route::resource('news', AdminNewsController::class);
     Route::patch('news/{news}/status', [AdminNewsController::class, 'updateStatus'])->name('news.update-status');
@@ -204,6 +215,7 @@ Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_
     // Agenda Management
     Route::resource('agenda', \App\Http\Controllers\Backend\AgendaController::class);
     Route::post('agenda/{agenda}/toggle-status', [\App\Http\Controllers\Backend\AgendaController::class, 'toggleStatus'])->name('agenda.toggle-status');
+    Route::get('agenda/export', [\App\Http\Controllers\Backend\AgendaController::class, 'export'])->name('agenda.export');
     
     // Budget Management
     Route::resource('budget', BudgetController::class);
@@ -219,6 +231,19 @@ Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_
     Route::post('letter-requests/{letterRequest}/process', [\App\Http\Controllers\Backend\ServiceController::class, 'processLetterRequest'])->name('letter-requests.process');
     Route::post('letter-requests/{letterRequest}/complete', [\App\Http\Controllers\Backend\ServiceController::class, 'completeLetterRequest'])->name('letter-requests.complete');
     Route::post('letter-requests/{letterRequest}/reject', [\App\Http\Controllers\Backend\ServiceController::class, 'rejectLetterRequest'])->name('letter-requests.reject');
+    
+    // Letter Template Management
+    Route::resource('letter-templates', \App\Http\Controllers\Backend\LetterTemplateController::class);
+    Route::post('letter-templates/{letterTemplate}/duplicate', [\App\Http\Controllers\Backend\LetterTemplateController::class, 'duplicate'])->name('letter-templates.duplicate');
+    Route::post('letter-templates/{letterTemplate}/toggle-status', [\App\Http\Controllers\Backend\LetterTemplateController::class, 'toggleStatus'])->name('letter-templates.toggle-status');
+    Route::get('letter-templates/{letterTemplate}/preview', [\App\Http\Controllers\Backend\LetterTemplateController::class, 'preview'])->name('letter-templates.preview');
+    Route::post('letter-templates/{letterTemplate}/preview', [\App\Http\Controllers\Backend\LetterTemplateController::class, 'downloadPDF'])->name('letter-templates.download-pdf');
+    
+    // Word Template specific routes
+    Route::get('letter-templates/{letterTemplate}/bookmarks', [\App\Http\Controllers\Backend\LetterTemplateController::class, 'getBookmarks'])->name('letter-templates.bookmarks');
+    Route::get('letter-templates/{letterTemplate}/preview-word', [\App\Http\Controllers\Backend\LetterTemplateController::class, 'previewWord'])->name('letter-templates.preview-word');
+    Route::get('letter-templates/{letterTemplate}/download', [\App\Http\Controllers\Backend\LetterTemplateController::class, 'downloadTemplate'])->name('letter-templates.download');
+    Route::post('letter-templates/extract-bookmarks', [\App\Http\Controllers\Backend\LetterTemplateController::class, 'extractBookmarks'])->name('letter-templates.extract-bookmarks');
     
     // Contact Message Management
     Route::resource('contact', \App\Http\Controllers\Backend\ContactController::class)->only(['index', 'show', 'destroy']);

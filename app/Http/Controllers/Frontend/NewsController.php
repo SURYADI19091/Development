@@ -27,7 +27,7 @@ class NewsController extends Controller
             });
         }
 
-        $news = $query->with('user')
+        $news = $query->with('author')
                      ->orderBy('published_at', 'desc')
                      ->paginate(9);
 
@@ -62,7 +62,7 @@ class NewsController extends Controller
     {
         $news = News::where('slug', $slug)
                    ->where('is_published', true)
-                   ->with('user')
+                   ->with('author')
                    ->firstOrFail();
 
         // Increment views count
@@ -89,7 +89,7 @@ class NewsController extends Controller
     {
         $news = News::where('is_published', true)
                    ->where('category', $category)
-                   ->with('user')
+                   ->with('author')
                    ->orderBy('published_at', 'desc')
                    ->paginate(12);
 

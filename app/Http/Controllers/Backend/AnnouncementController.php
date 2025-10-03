@@ -40,11 +40,11 @@ class AnnouncementController extends Controller
 
         // Filter by date range
         if ($request->has('date_from') && $request->date_from != '') {
-            $query->whereDate('start_date', '>=', $request->date_from);
+            $query->whereDate('valid_from', '>=', $request->date_from);
         }
         
         if ($request->has('date_to') && $request->date_to != '') {
-            $query->whereDate('end_date', '<=', $request->date_to);
+            $query->whereDate('valid_until', '<=', $request->date_to);
         }
 
         $announcements = $query->orderBy('priority', 'desc')
@@ -59,9 +59,8 @@ class AnnouncementController extends Controller
     public function create()
     {
         $priorities = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'];
-        $targetAudiences = ['all' => 'All Citizens', 'adults' => 'Adults Only', 'businesses' => 'Businesses', 'students' => 'Students'];
         
-        return view('backend.announcements.create', compact('priorities', 'targetAudiences'));
+        return view('backend.announcements.create', compact('priorities'));
     }
 
     public function store(Request $request)
@@ -70,45 +69,24 @@ class AnnouncementController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'priority' => 'required|in:low,medium,high,urgent',
-            'target_audience' => 'required|array',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'attachments' => 'nullable|array',
-            'attachments.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:5120', // 5MB max
+            'category' => 'nullable|string|max:100',
+            'valid_from' => 'nullable|date',
+            'valid_until' => 'nullable|date|after_or_equal:valid_from',
             'is_active' => 'boolean',
         ]);
 
-        $data = $request->all();
-        $data['author_id'] = Auth::id();
-
-        // Handle file attachments
-        if ($request->hasFile('attachments')) {
-            $attachments = [];
-            foreach ($request->file('attachments') as $file) {
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('announcements/attachments', $filename, 'public');
-                $attachments[] = [
-                    'filename' => $file->getClientOriginalName(),
-                    'path' => $path,
-                    'size' => $file->getSize(),
-                    'mime_type' => $file->getMimeType(),
-                ];
-            }
-            $data['attachments'] = $attachments;
-        }
+        $data = $request->only(['title', 'content', 'priority', 'category', 'valid_from', 'valid_until', 'is_active']);
+        $data['created_by'] = Auth::id();
 
         Announcement::create($data);
 
-        return redirect()->route('admin.announcements.index')
+        return redirect()->route('backend.announcements.index')
                         ->with('success', 'Announcement created successfully!');
     }
 
     public function show($id)
     {
         $announcement = Announcement::with('author')->findOrFail($id);
-        
-        // Increment views count
-        $announcement->increment('views_count');
         
         return view('backend.announcements.show', compact('announcement'));
     }
@@ -117,9 +95,8 @@ class AnnouncementController extends Controller
     {
         $announcement = Announcement::findOrFail($id);
         $priorities = ['low' => 'Low', 'medium' => 'Medium', 'high' => 'High', 'urgent' => 'Urgent'];
-        $targetAudiences = ['all' => 'All Citizens', 'adults' => 'Adults Only', 'businesses' => 'Businesses', 'students' => 'Students'];
         
-        return view('backend.announcements.edit', compact('announcement', 'priorities', 'targetAudiences'));
+        return view('backend.announcements.edit', compact('announcement', 'priorities'));
     }
 
     public function update(Request $request, $id)
@@ -130,59 +107,26 @@ class AnnouncementController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'priority' => 'required|in:low,medium,high,urgent',
-            'target_audience' => 'required|array',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'attachments' => 'nullable|array',
-            'attachments.*' => 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:5120',
+            'category' => 'nullable|string|max:100',
+            'valid_from' => 'nullable|date',
+            'valid_until' => 'nullable|date|after_or_equal:valid_from',
             'is_active' => 'boolean',
         ]);
 
-        $data = $request->all();
-
-        // Handle file attachments
-        if ($request->hasFile('attachments')) {
-            // Delete old attachments if any
-            if ($announcement->attachments) {
-                foreach ($announcement->attachments as $attachment) {
-                    Storage::disk('public')->delete($attachment['path']);
-                }
-            }
-            
-            $attachments = [];
-            foreach ($request->file('attachments') as $file) {
-                $filename = time() . '_' . $file->getClientOriginalName();
-                $path = $file->storeAs('announcements/attachments', $filename, 'public');
-                $attachments[] = [
-                    'filename' => $file->getClientOriginalName(),
-                    'path' => $path,
-                    'size' => $file->getSize(),
-                    'mime_type' => $file->getMimeType(),
-                ];
-            }
-            $data['attachments'] = $attachments;
-        }
+        $data = $request->only(['title', 'content', 'priority', 'category', 'valid_from', 'valid_until', 'is_active']);
 
         $announcement->update($data);
 
-        return redirect()->route('admin.announcements.index')
+        return redirect()->route('backend.announcements.index')
                         ->with('success', 'Announcement updated successfully!');
     }
 
     public function destroy($id)
     {
         $announcement = Announcement::findOrFail($id);
-        
-        // Delete attachments
-        if ($announcement->attachments) {
-            foreach ($announcement->attachments as $attachment) {
-                Storage::disk('public')->delete($attachment['path']);
-            }
-        }
-
         $announcement->delete();
 
-        return redirect()->route('admin.announcements.index')
+        return redirect()->route('backend.announcements.index')
                         ->with('success', 'Announcement deleted successfully!');
     }
 
@@ -193,7 +137,10 @@ class AnnouncementController extends Controller
         $announcement->save();
 
         $status = $announcement->is_active ? 'activated' : 'deactivated';
-        return response()->json(['message' => "Announcement {$status} successfully!"]);
+        return response()->json([
+            'success' => true,
+            'message' => "Announcement {$status} successfully!"
+        ]);
     }
 
     public function bulkAction(Request $request)
@@ -231,15 +178,21 @@ class AnnouncementController extends Controller
                 break;
         }
 
-        return redirect()->route('admin.announcements.index')
+        return redirect()->route('backend.announcements.index')
                         ->with('success', $message);
     }
 
     public function getActiveAnnouncements()
     {
         $announcements = Announcement::where('is_active', true)
-                                   ->where('start_date', '<=', now())
-                                   ->where('end_date', '>=', now())
+                                   ->where(function($query) {
+                                       $query->whereNull('valid_from')
+                                             ->orWhere('valid_from', '<=', now());
+                                   })
+                                   ->where(function($query) {
+                                       $query->whereNull('valid_until')
+                                             ->orWhere('valid_until', '>=', now());
+                                   })
                                    ->orderBy('priority', 'desc')
                                    ->orderBy('created_at', 'desc')
                                    ->take(10)

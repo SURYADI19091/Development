@@ -81,6 +81,44 @@
         </div>
     </div>
 
+    <!-- Page Header with Create Button -->
+    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">Manajemen Berita</h2>
+                <p class="mt-1 text-sm text-gray-600">Kelola semua berita dan artikel website desa</p>
+                <!-- Debug Info -->
+                @auth
+                <p class="mt-2 text-xs text-gray-500">
+                    Role: {{ auth()->user()->role }} | 
+                    Can manage-content: {{ Gate::allows('manage-content') ? 'Yes' : 'No' }} |
+                    Can export-content: {{ Gate::allows('export-content') ? 'Yes' : 'No' }}
+                </p>
+                @endauth
+            </div>
+            @can('manage-content')
+            <div class="mt-4 sm:mt-0">
+                <a href="{{ route('backend.news.create') }}" 
+                   class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                    <i class="fas fa-plus-circle mr-3"></i>
+                    Buat Berita Baru
+                </a>
+            </div>
+            @else
+            <!-- Fallback for super admin -->
+            @if(auth()->check() && auth()->user()->role === 'super_admin')
+            <div class="mt-4 sm:mt-0">
+                <a href="{{ route('backend.news.create') }}" 
+                   class="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105">
+                    <i class="fas fa-plus-circle mr-3"></i>
+                    Buat Berita Baru (Super Admin)
+                </a>
+            </div>
+            @endif
+            @endcan
+        </div>
+    </div>
+
     <!-- Action Bar -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div class="flex-1 min-w-0">
@@ -113,20 +151,20 @@
             </div>
         </div>
         
-        <div class="mt-4 sm:mt-0 sm:ml-4 flex space-x-2">
+        <div class="mt-4 sm:mt-0 sm:ml-4 flex space-x-3">
             @can('export-content')
             <button type="button" onclick="exportNews()" 
-                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200">
                 <i class="fas fa-download mr-2"></i>
-                Export
+                Export Data
             </button>
             @endcan
             
             @can('manage-content')
-            <a href="{{ route('admin.news.create') }}" 
-               class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
-                <i class="fas fa-plus mr-2"></i>
-                Buat Berita
+            <a href="{{ route('backend.news.create') }}" 
+               class="inline-flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-105">
+                <i class="fas fa-plus-circle mr-2"></i>
+                Buat Berita Baru
             </a>
             @endcan
         </div>
@@ -177,7 +215,7 @@
                                 @endif
                                 <div class="flex-1 min-w-0">
                                     <div class="text-sm font-medium text-gray-900 mb-1">
-                                        <a href="{{ route('admin.news.show', $article) }}" class="hover:text-blue-600">
+                                        <a href="{{ route('backend.news.show', $article) }}" class="hover:text-blue-600">
                                             {{ Str::limit($article->title, 60) }}
                                         </a>
                                     </div>
@@ -245,46 +283,57 @@
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <div class="flex items-center justify-end space-x-2">
+                            <div class="flex items-center justify-end space-x-1">
+                                <!-- View on Website -->
                                 @can('view-content')
                                 <a href="{{ route('news.show', $article) }}" target="_blank"
-                                   class="text-gray-600 hover:text-gray-900" title="Lihat di Website">
-                                    <i class="fas fa-external-link-alt"></i>
+                                   class="inline-flex items-center p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors duration-200" 
+                                   title="Lihat di Website">
+                                    <i class="fas fa-external-link-alt text-sm"></i>
                                 </a>
                                 @endcan
                                 
+                                <!-- View Details -->
                                 @can('view-content')
-                                <a href="{{ route('admin.news.show', $article) }}" 
-                                   class="text-blue-600 hover:text-blue-900" title="Detail">
-                                    <i class="fas fa-eye"></i>
+                                <a href="{{ route('backend.news.show', $article) }}" 
+                                   class="inline-flex items-center p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-50 rounded-md transition-colors duration-200" 
+                                   title="Lihat Detail">
+                                    <i class="fas fa-eye text-sm"></i>
                                 </a>
                                 @endcan
                                 
+                                <!-- Edit Button -->
                                 @can('edit-content')
-                                <a href="{{ route('admin.news.edit', $article) }}" 
-                                   class="text-indigo-600 hover:text-indigo-900" title="Edit">
-                                    <i class="fas fa-edit"></i>
+                                <a href="{{ route('backend.news.edit', $article) }}" 
+                                   class="inline-flex items-center p-2 text-indigo-600 hover:text-indigo-900 hover:bg-indigo-50 rounded-md transition-colors duration-200" 
+                                   title="Edit Berita">
+                                    <i class="fas fa-edit text-sm"></i>
                                 </a>
                                 @endcan
                                 
+                                <!-- Publish/Unpublish Toggle -->
                                 @can('manage-content')
                                 @if($article->status === 'draft')
                                     <button type="button" onclick="publishNews({{ $article->id }})" 
-                                            class="text-green-600 hover:text-green-900" title="Publish">
-                                        <i class="fas fa-paper-plane"></i>
+                                            class="inline-flex items-center p-2 text-green-600 hover:text-green-900 hover:bg-green-50 rounded-md transition-colors duration-200" 
+                                            title="Publikasikan">
+                                        <i class="fas fa-paper-plane text-sm"></i>
                                     </button>
                                 @elseif($article->status === 'published')
                                     <button type="button" onclick="unpublishNews({{ $article->id }})" 
-                                            class="text-orange-600 hover:text-orange-900" title="Unpublish">
-                                        <i class="fas fa-pause"></i>
+                                            class="inline-flex items-center p-2 text-orange-600 hover:text-orange-900 hover:bg-orange-50 rounded-md transition-colors duration-200" 
+                                            title="Batalkan Publikasi">
+                                        <i class="fas fa-pause text-sm"></i>
                                     </button>
                                 @endif
                                 @endcan
                                 
+                                <!-- Delete Button -->
                                 @can('delete-content')
-                                <button type="button" onclick="deleteNews({{ $article->id }})" 
-                                        class="text-red-600 hover:text-red-900" title="Hapus">
-                                    <i class="fas fa-trash"></i>
+                                <button type="button" onclick="deleteNews({{ $article->id }}, '{{ addslashes($article->title) }}')" 
+                                        class="inline-flex items-center p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded-md transition-colors duration-200" 
+                                        title="Hapus Berita">
+                                    <i class="fas fa-trash text-sm"></i>
                                 </button>
                                 @endcan
                             </div>
@@ -299,8 +348,8 @@
                                 <p class="text-sm">Mulai membuat konten untuk website desa</p>
                                 @can('manage-content')
                                 <div class="mt-4">
-                                    <a href="{{ route('admin.news.create') }}" 
-                                       class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                                    <a href="{{ route('backend.news.create') }}" 
+                                       class="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 shadow-sm">
                                         <i class="fas fa-plus mr-2"></i>
                                         Buat Berita Pertama
                                     </a>
@@ -322,42 +371,55 @@
     </div>
 
     <!-- Bulk Actions Panel -->
-    <div id="bulk-actions" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
+    <div id="bulk-actions" class="hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 shadow-lg transform transition-transform duration-300 ease-in-out translate-y-full" style="z-index: 40;">
         <div class="flex items-center justify-between max-w-7xl mx-auto">
             <div class="flex items-center">
-                <span class="text-sm text-gray-700">
+                <span class="text-sm font-medium text-gray-700">
+                    <i class="fas fa-check-square mr-2 text-blue-600"></i>
                     <span id="selected-count">0</span> berita dipilih
                 </span>
             </div>
             <div class="flex items-center space-x-2">
                 @can('manage-content')
                 <button type="button" onclick="bulkAction('publish')" 
-                        class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
-                    <i class="fas fa-paper-plane mr-1"></i>
-                    Publish
+                        class="inline-flex items-center px-4 py-2 border border-green-300 text-sm font-medium rounded-md text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors duration-200">
+                    <i class="fas fa-paper-plane mr-2"></i>
+                    Publikasikan
                 </button>
                 <button type="button" onclick="bulkAction('unpublish')" 
-                        class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50">
-                    <i class="fas fa-pause mr-1"></i>
-                    Unpublish
+                        class="inline-flex items-center px-4 py-2 border border-orange-300 text-sm font-medium rounded-md text-orange-700 bg-orange-50 hover:bg-orange-100 focus:outline-none focus:ring-2 focus:ring-orange-500 transition-colors duration-200">
+                    <i class="fas fa-pause mr-2"></i>
+                    Batalkan Publikasi
                 </button>
                 @endcan
                 
                 @can('delete-content')
                 <button type="button" onclick="bulkAction('delete')" 
-                        class="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50">
-                    <i class="fas fa-trash mr-1"></i>
-                    Hapus
+                        class="inline-flex items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors duration-200">
+                    <i class="fas fa-trash mr-2"></i>
+                    Hapus Terpilih
                 </button>
                 @endcan
                 
                 <button type="button" onclick="clearSelection()" 
-                        class="text-gray-400 hover:text-gray-600">
+                        class="inline-flex items-center p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors duration-200"
+                        title="Batalkan Pilihan">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
         </div>
     </div>
+
+    <!-- Floating Action Button -->
+    @can('manage-content')
+    <div class="fixed bottom-6 right-6" style="z-index: 30;">
+        <a href="{{ route('backend.news.create') }}" 
+           class="inline-flex items-center justify-center w-14 h-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 group"
+           title="Buat Berita Baru">
+            <i class="fas fa-plus text-xl group-hover:scale-110 transition-transform duration-200"></i>
+        </a>
+    </div>
+    @endcan
 </div>
 
 <!-- Delete Confirmation Modal -->
@@ -451,10 +513,22 @@
         const selectedCount = document.getElementById('selected-count');
         
         if (selectedNews.length > 0) {
-            bulkActions.classList.remove('hidden');
+            if (bulkActions.classList.contains('hidden')) {
+                bulkActions.classList.remove('hidden');
+                // Trigger animation
+                setTimeout(() => {
+                    bulkActions.classList.remove('translate-y-full');
+                }, 10);
+            }
             selectedCount.textContent = selectedNews.length;
         } else {
-            bulkActions.classList.add('hidden');
+            if (!bulkActions.classList.contains('hidden')) {
+                bulkActions.classList.add('translate-y-full');
+                // Hide after animation completes
+                setTimeout(() => {
+                    bulkActions.classList.add('hidden');
+                }, 300);
+            }
         }
     }
 
@@ -493,7 +567,7 @@
         if (status) params.append('status', status);
         if (category) params.append('category', category);
 
-        fetch(`{{ route('admin.news.index') }}?${params.toString()}`, {
+        fetch(`{{ route('backend.news.index') }}?${params.toString()}`, {
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
             }
@@ -525,7 +599,7 @@
     }
 
     function updateNewsStatus(newsId, status) {
-        fetch(`{{ route('admin.news.index') }}/${newsId}/status`, {
+        fetch(`{{ route('backend.news.index') }}/${newsId}/status`, {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
@@ -548,18 +622,26 @@
         });
     }
 
-    function deleteNews(newsId) {
+    function deleteNews(newsId, title = '') {
         deleteNewsId = newsId;
-        document.getElementById('delete-message').textContent = 'Apakah Anda yakin ingin menghapus berita ini? Tindakan ini tidak dapat dibatalkan.';
+        const message = title 
+            ? `Apakah Anda yakin ingin menghapus berita "${title}"? Tindakan ini tidak dapat dibatalkan.`
+            : 'Apakah Anda yakin ingin menghapus berita ini? Tindakan ini tidak dapat dibatalkan.';
+        
+        document.getElementById('delete-message').textContent = message;
         document.getElementById('delete-modal').classList.remove('hidden');
         
-        document.getElementById('confirm-delete').onclick = function() {
+        // Add loading state to confirm button
+        const confirmBtn = document.getElementById('confirm-delete');
+        confirmBtn.onclick = function() {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menghapus...';
             performDelete(newsId);
         };
     }
 
     function performDelete(newsId) {
-        fetch(`{{ route('admin.news.index') }}/${newsId}`, {
+        fetch(`{{ route('backend.news.index') }}/${newsId}`, {
             method: 'DELETE',
             headers: {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
@@ -569,10 +651,20 @@
         .then(data => {
             hideDeleteModal();
             if (data.success) {
-                showNotification(data.message, 'success');
-                filterNews();
+                showNotification(data.message || 'Berita berhasil dihapus', 'success');
+                // Remove the row with animation
+                const row = document.querySelector(`tr[data-news-id="${newsId}"]`);
+                if (row) {
+                    row.style.transition = 'opacity 0.3s';
+                    row.style.opacity = '0';
+                    setTimeout(() => {
+                        filterNews();
+                    }, 300);
+                } else {
+                    filterNews();
+                }
             } else {
-                showNotification(data.message || 'Terjadi kesalahan', 'error');
+                showNotification(data.message || 'Terjadi kesalahan saat menghapus berita', 'error');
             }
         })
         .catch(error => {
@@ -584,6 +676,12 @@
 
     function hideDeleteModal() {
         document.getElementById('delete-modal').classList.add('hidden');
+        
+        // Reset confirm button state
+        const confirmBtn = document.getElementById('confirm-delete');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = 'Hapus';
+        
         deleteNewsId = null;
     }
 
@@ -604,7 +702,7 @@
         }
 
         if (confirm(message)) {
-            fetch(`{{ route('admin.news.bulk-action') }}`, {
+            fetch(`{{ route('backend.news.bulk-action') }}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -642,7 +740,138 @@
         if (status) params.append('status', status);
         if (category) params.append('category', category);
 
-        window.open(`{{ route('admin.news.export') }}?${params.toString()}`, '_blank');
+        window.open(`{{ route('backend.news.export') }}?${params.toString()}`, '_blank');
     }
 </script>
+@endpush
+
+@push('styles')
+<style>
+/* Enhanced button hover effects */
+.news-action-btn {
+    @apply transition-all duration-200 ease-in-out;
+}
+
+.news-action-btn:hover {
+    @apply transform scale-105;
+}
+
+/* Floating Action Button Animation */
+.fab-create {
+    @apply transition-all duration-300 ease-in-out;
+    animation: float 3s ease-in-out infinite;
+}
+
+.fab-create:hover {
+    @apply transform scale-110;
+    animation-play-state: paused;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+}
+
+/* Table row hover animations */
+.table-row {
+    @apply transition-all duration-200 ease-in-out;
+}
+
+.table-row:hover {
+    @apply bg-gray-50 transform scale-[1.01];
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Bulk actions panel animation */
+.bulk-actions-panel {
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bulk-actions-panel.show {
+    transform: translateY(0);
+}
+
+/* Status badges with pulse animation */
+.status-published {
+    @apply bg-green-100 text-green-800;
+    animation: pulse-green 2s infinite;
+}
+
+.status-draft {
+    @apply bg-yellow-100 text-yellow-800;
+    animation: pulse-yellow 2s infinite;
+}
+
+@keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
+}
+
+@keyframes pulse-yellow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
+}
+
+/* Loading spinner animation */
+.loading-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Modal animations */
+.modal-overlay {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.modal-content {
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { 
+        opacity: 0; 
+        transform: translateY(20px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* Search input focus animation */
+.search-input:focus {
+    @apply ring-2 ring-blue-500 border-blue-500;
+    animation: searchGlow 0.3s ease-out;
+}
+
+@keyframes searchGlow {
+    0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
+    100% { box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+}
+
+/* Responsive enhancements */
+@media (max-width: 768px) {
+    .fab-create {
+        @apply w-12 h-12 bottom-4 right-4;
+    }
+    
+    .bulk-actions-panel {
+        @apply px-2 py-2;
+    }
+    
+    .table-row:hover {
+        @apply transform-none;
+    }
+}
+</style>
 @endpush

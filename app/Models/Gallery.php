@@ -39,9 +39,24 @@ class Gallery extends Model
         'views_count' => 'integer',
     ];
 
+    // Accessor to ensure tags is always an array
+    public function getTagsAttribute($value)
+    {
+        if (is_null($value) || $value === '') {
+            return [];
+        }
+        return is_string($value) ? json_decode($value, true) ?? [] : (is_array($value) ? $value : []);
+    }
+
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    // Alias untuk kompatibilitas dengan controller yang menggunakan $gallery->user
+    public function user(): BelongsTo
+    {
+        return $this->uploader();
     }
 
     public function likes(): HasMany

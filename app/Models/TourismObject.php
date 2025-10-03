@@ -15,39 +15,33 @@ class TourismObject extends Model
         'description',
         'category',
         'address',
-        'settlement_id',
         'latitude',
         'longitude',
-        'contact_info',
-        'operating_hours',
-        'entry_fee',
         'facilities',
+        'ticket_price',
+        'operating_hours',
+        'contact_person',
+        'contact_phone',
         'images',
-        'rating',
-        'total_reviews',
         'is_active',
-        'featured',
-        'is_featured',
-        'accessibility',
     ];
 
     protected $casts = [
-        'settlement_id' => 'integer',
         'latitude' => 'decimal:8',
         'longitude' => 'decimal:8',
-        'entry_fee' => 'decimal:2',
-        'facilities' => 'array',
+        'ticket_price' => 'decimal:2',
         'images' => 'array',
-        'rating' => 'decimal:2',
-        'total_reviews' => 'integer',
         'is_active' => 'boolean',
-        'featured' => 'boolean',
-        'is_featured' => 'boolean',
-        'accessibility' => 'array',
     ];
 
-    public function settlement(): BelongsTo
+    // Accessor to ensure images is always an array
+    public function getImagesAttribute($value)
     {
-        return $this->belongsTo(Settlement::class, 'settlement_id');
+        if (is_null($value) || $value === '') {
+            return [];
+        }
+        return is_string($value) ? json_decode($value, true) ?? [] : (is_array($value) ? $value : []);
     }
+
+
 }

@@ -180,7 +180,7 @@
                                             @foreach($settlements as $settlement)
                                                 <option value="{{ $settlement->id }}" 
                                                         {{ old('settlement_id') == $settlement->id ? 'selected' : '' }}>
-                                                    {{ $settlement->name }}
+                                                    {{ $settlement->name }} - RT {{ $settlement->neighborhood_number ?? '-' }} / RW {{ $settlement->community_number ?? '-' }}
                                                 </option>
                                             @endforeach
                                         </select>
