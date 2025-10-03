@@ -18,6 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'maintenance.access' => \App\Http\Middleware\MaintenanceModeMiddleware::class,
         ]);
 
+        // Register middleware groups
+        $middleware->group('admin', [
+            'auth',
+            'gate:access-admin-panel'
+        ]);
+
         // Register global middleware
         $middleware->web(append: [
             \App\Http\Middleware\MaintenanceModeMiddleware::class,

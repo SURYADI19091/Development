@@ -197,7 +197,7 @@
                                     <td>Rp {{ number_format($budget->planned_amount, 0, ',', '.') }}</td>
                                     <td>
                                         @php
-                                            $realized = $budget->transactions()->sum('amount') ?? 0;
+                                            $realized = $budget->realized_amount ?? $budget->realization ?? 0;
                                         @endphp
                                         Rp {{ number_format($realized, 0, ',', '.') }}
                                     </td>

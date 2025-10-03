@@ -14,6 +14,7 @@ use App\Models\TourismObject;
 use App\Models\PopulationData;
 use App\Models\VillageBudget;
 use App\Models\BudgetTransaction;
+use App\Models\Location;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -51,6 +52,8 @@ class HomeController extends Controller
             'tourism_objects' => TourismObject::where('is_active', true)->count(),
             'news_count' => News::count(),
             'agenda_count' => Agenda::where('event_date', '>=', now())->count(),
+            'location_count' => Location::where('is_active', true)->count(),
+            'mapped_locations' => Location::where('is_active', true)->where('show_on_map', true)->count(),
         ];
 
         // Popular and Latest Articles
@@ -755,14 +758,46 @@ class HomeController extends Controller
 
     public function getLocations()
     {
-        $locations = \App\Models\Location::active()
+        $locations = Location::active()
                                        ->onMap()
                                        ->orderBy('sort_order')
-                                       ->get(['name', 'description', 'type', 'latitude', 'longitude', 'address', 'phone', 'icon', 'color'])
+                                       ->get([
+                                           'name', 'description', 'type', 'latitude', 'longitude', 
+                                           'area_size', 'area_coordinates', 'address', 'phone', 'email',
+                                           'icon', 'color'
+                                       ])
                                        ->map(function($location) {
                                            $location->type_name = $location->getTypeNameAttribute();
+                                           $location->formatted_area = $location->getFormattedAreaAttribute();
                                            return $location;
                                        });
+
+        // Add sample location with area coordinates if no locations exist
+        if ($locations->isEmpty()) {
+            $locations = collect([
+                (object)[
+                    'name' => 'Kantor Desa Ciuwlan',
+                    'description' => 'Kantor administrasi desa',
+                    'type' => 'office',
+                    'latitude' => -6.8458,
+                    'longitude' => 107.1234,
+                    'area_coordinates' => json_encode([
+                        ['lat' => -6.8450, 'lng' => 107.1230],
+                        ['lat' => -6.8460, 'lng' => 107.1240],
+                        ['lat' => -6.8470, 'lng' => 107.1235],
+                        ['lat' => -6.8465, 'lng' => 107.1225],
+                        ['lat' => -6.8450, 'lng' => 107.1230]
+                    ]),
+                    'address' => 'Desa Ciuwlan, Telagasari, Karawang',
+                    'phone' => '0267-123456',
+                    'email' => 'kantor@ciuwlan.go.id',
+                    'icon' => 'fas fa-building',
+                    'color' => '#3B82F6',
+                    'type_name' => 'Kantor Pemerintahan',
+                    'formatted_area' => '2,500 m²'
+                ]
+            ]);
+        }
 
         return response()->json($locations);
     }

@@ -17,6 +17,7 @@ use App\Http\Controllers\Backend\UmkmController as BackendUmkmController;
 use App\Http\Controllers\Backend\BudgetController;
 use App\Http\Controllers\Backend\ContactController;
 use App\Http\Controllers\Backend\SettlementController;
+use App\Http\Controllers\Backend\BackupController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\NewsController as AdminNewsController;
@@ -60,7 +61,7 @@ Route::middleware(['auth', 'gate:account-active'])->group(function () {
 
 // Home & Main Pages
 Route::get('/', [HomeController::class, 'index'])->name('home');
-Route::get('/profil-desa', [ProfileController::class, 'index'])->name('profile');
+Route::get('/profile-desa', [ProfileController::class, 'index'])->name('profile');
 Route::get('/sejarah', [ProfileController::class, 'history'])->name('history');
 Route::get('/visi-misi', [ProfileController::class, 'visionMission'])->name('vision-mission');
 Route::get('/struktur-pemerintahan', [ProfileController::class, 'government'])->name('government');
@@ -142,24 +143,25 @@ Route::prefix('api')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_admin', 'gate:access-admin-panel'])->group(function () {
+Route::prefix('admin')->name('backend.')->middleware(['auth', 'gate:access-admin-panel'])->group(function () {
     
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
+        Route::get('/system-info', [DashboardController::class, 'getSystemInfo'])->name('dashboard.system-info')->middleware('gate:view-system-info');
     
     // Permission Management
-    Route::get('/permissions', [\App\Http\Controllers\Backend\PermissionController::class, 'index'])->name('permissions.index');
-    Route::post('/permissions/role', [\App\Http\Controllers\Backend\PermissionController::class, 'updateRolePermissions'])->name('permissions.update-role');
-    Route::post('/permissions/user', [\App\Http\Controllers\Backend\PermissionController::class, 'updateUserPermissions'])->name('permissions.update-user');
+    Route::get('/permissions', [\App\Http\Controllers\Backend\PermissionController::class, 'index'])->name('permissions.index')->middleware('gate:manage-permissions');
+    Route::post('/permissions/role', [\App\Http\Controllers\Backend\PermissionController::class, 'updateRolePermissions'])->name('permissions.update-role')->middleware('gate:manage-permissions');
+    Route::post('/permissions/user', [\App\Http\Controllers\Backend\PermissionController::class, 'updateUserPermissions'])->name('permissions.update-user')->middleware('gate:manage-permissions');
     Route::get('/permissions/test', [\App\Http\Controllers\Backend\PermissionController::class, 'testPermissions'])->name('permissions.test');
     
     // Legacy Permissions Test Route
     Route::get('/test-permissions', [\App\Http\Controllers\Backend\PermissionsTestController::class, 'testPermissions'])->name('test-permissions');
-    Route::get('/system-info', [DashboardController::class, 'getSystemInfo'])->name('system-info');
+
     
     // User Management (New Admin System)
-    Route::resource('users', AdminUserController::class);
+    Route::resource('users', AdminUserController::class)->middleware('gate:manage-users');
     Route::patch('users/{user}/status', [AdminUserController::class, 'updateStatus'])->name('users.update-status');
     Route::post('users/bulk-action', [AdminUserController::class, 'bulkAction'])->name('users.bulk-action');
     Route::get('users-export', [AdminUserController::class, 'export'])->name('users.export');
@@ -170,7 +172,7 @@ Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_
     Route::delete('users/{user}/force-delete', [BackendUserController::class, 'forceDelete'])->name('users.force-delete');
     
     // Population Data Management
-    Route::resource('population', PopulationController::class);
+    Route::resource('population', PopulationController::class)->middleware('gate:manage-population-data');
     Route::get('population/statistics', [PopulationController::class, 'statistics'])->name('population.statistics');
     Route::get('population/import/template', [PopulationController::class, 'downloadTemplate'])->name('population.template');
     Route::post('population/import', [PopulationController::class, 'import'])->name('population.import');
@@ -182,12 +184,12 @@ Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_
     Route::post('settlements/{settlement}/toggle-status', [SettlementController::class, 'toggleStatus'])->name('settlements.toggle-status');
     
     // Location Management
-    Route::resource('locations', \App\Http\Controllers\Backend\LocationController::class);
+    Route::resource('locations', \App\Http\Controllers\Backend\LocationController::class)->middleware('gate:manage-locations');
     Route::post('locations/{location}/toggle-status', [\App\Http\Controllers\Backend\LocationController::class, 'toggleStatus'])->name('locations.toggle-status');
     Route::get('locations/export', [\App\Http\Controllers\Backend\LocationController::class, 'export'])->name('locations.export');
     
     // News Management (New Admin System)
-    Route::resource('news', AdminNewsController::class);
+    Route::resource('news', AdminNewsController::class)->middleware('gate:manage-content');
     Route::patch('news/{news}/status', [AdminNewsController::class, 'updateStatus'])->name('news.update-status');
     Route::post('news/bulk-action', [AdminNewsController::class, 'bulkAction'])->name('news.bulk-action');
     Route::get('news-export', [AdminNewsController::class, 'export'])->name('news.export');
@@ -218,7 +220,7 @@ Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_
     Route::get('agenda/export', [\App\Http\Controllers\Backend\AgendaController::class, 'export'])->name('agenda.export');
     
     // Budget Management
-    Route::resource('budget', BudgetController::class);
+    Route::resource('budget', BudgetController::class)->middleware('gate:manage-village-budget');
     Route::get('budget/transactions/{budget}', [BudgetController::class, 'transactions'])->name('budget.transactions');
     Route::post('budget/{budget}/add-transaction', [BudgetController::class, 'addTransaction'])->name('budget.add-transaction');
     Route::delete('budget/transactions/{transaction}', [BudgetController::class, 'deleteTransaction'])->name('budget.delete-transaction');
@@ -246,7 +248,7 @@ Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_
     Route::post('letter-templates/extract-bookmarks', [\App\Http\Controllers\Backend\LetterTemplateController::class, 'extractBookmarks'])->name('letter-templates.extract-bookmarks');
     
     // Contact Message Management
-    Route::resource('contact', \App\Http\Controllers\Backend\ContactController::class)->only(['index', 'show', 'destroy']);
+    Route::resource('contact', \App\Http\Controllers\Backend\ContactController::class)->only(['index', 'show', 'destroy'])->middleware('gate:manage-contact-messages');
     Route::get('contact/{contact}/reply', [\App\Http\Controllers\Backend\ContactController::class, 'reply'])->name('contact.reply');
     Route::post('contact/{contact}/reply', [\App\Http\Controllers\Backend\ContactController::class, 'storeReply'])->name('contact.store-reply');
     Route::patch('contact/{contact}/status', [\App\Http\Controllers\Backend\ContactController::class, 'updateStatus'])->name('contact.update-status');
@@ -271,14 +273,14 @@ Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_
     Route::delete('village-officials/{official}', [\App\Http\Controllers\Backend\VillageController::class, 'deleteOfficial'])->name('village.delete-official');
     
     // Statistics & Reports
-    Route::get('statistics', [DashboardController::class, 'statistics'])->name('statistics');
-    Route::get('reports', [DashboardController::class, 'reports'])->name('reports');
-    Route::get('reports/export', [DashboardController::class, 'exportReports'])->name('reports.export');
+    Route::get('statistics', [DashboardController::class, 'statistics'])->name('statistics')->middleware('gate:generate-reports');
+    Route::get('reports', [DashboardController::class, 'reports'])->name('reports')->middleware('gate:generate-reports');
+    Route::get('reports/export', [DashboardController::class, 'exportReports'])->name('reports.export')->middleware('gate:export-data');
     
     // Settings Management (New Admin System)
-    Route::get('settings', [SettingsController::class, 'index'])->name('settings.index');
-    Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
-    Route::post('settings/test-email', [SettingsController::class, 'testEmail'])->name('settings.test-email');
+    Route::get('settings', [SettingsController::class, 'index'])->name('settings.index')->middleware('gate:manage-settings');
+    Route::put('settings', [SettingsController::class, 'update'])->name('settings.update')->middleware('gate:manage-settings');
+    Route::post('settings/test-email', [SettingsController::class, 'testEmail'])->name('settings.test-email')->middleware('gate:manage-settings');
     
     // Legacy Settings (Keep for compatibility)
     Route::get('legacy-settings', [\App\Http\Controllers\Backend\SettingController::class, 'index'])->name('legacy-settings.index');
@@ -290,15 +292,18 @@ Route::prefix('admin')->name('backend.')->middleware(['auth', 'role:admin,super_
     Route::delete('delete-file/{path}', [\App\Http\Controllers\Backend\FileController::class, 'deleteFile'])->name('delete.file');
     
     // Backup Management (New Admin System)
-    Route::get('backup', [SettingsController::class, 'backupIndex'])->name('backup.index');
-    Route::post('backup/create', [SettingsController::class, 'createBackup'])->name('backup.create');
-    Route::delete('backup/{file}', [SettingsController::class, 'deleteBackup'])->name('backup.delete');
-    Route::get('backup/{file}/download', [SettingsController::class, 'downloadBackup'])->name('backup.download');
+    Route::get('backup', [BackupController::class, 'index'])->name('backup.index')->middleware('gate:manage-system-backup');
+    Route::post('backup/create', [BackupController::class, 'createBackup'])->name('backup.create')->middleware('gate:manage-system-backup');
+    Route::post('backup/restore', [BackupController::class, 'restoreBackup'])->name('backup.restore')->middleware('gate:manage-system-backup');
+    Route::post('backup/preview', [BackupController::class, 'getBackupPreview'])->name('backup.preview');
+    Route::get('backup/statistics', [BackupController::class, 'getStatistics'])->name('backup.statistics');
+    Route::get('backup/{filename}/download', [BackupController::class, 'downloadBackup'])->name('backup.download');
+    Route::delete('backup/{filename}', [BackupController::class, 'deleteBackup'])->name('backup.delete');
     
     // Activity Logs
-    Route::get('activity-logs', [DashboardController::class, 'activityLogs'])->name('activity-logs');
-    Route::get('logs', [DashboardController::class, 'logs'])->name('logs');
-    Route::post('logs/clear', [DashboardController::class, 'clearLogs'])->name('logs.clear');
+    Route::get('activity-logs', [DashboardController::class, 'activityLogs'])->name('activity-logs')->middleware('gate:view-activity-logs');
+    Route::get('logs', [DashboardController::class, 'logs'])->name('logs')->middleware('gate:view-logs');
+    Route::post('logs/clear', [DashboardController::class, 'clearLogs'])->name('logs.clear')->middleware('gate:clear-logs');
     
     // Legacy Backup & Maintenance (Keep for compatibility)
     Route::get('legacy-backup', [\App\Http\Controllers\Backend\MaintenanceController::class, 'backup'])->name('legacy-backup.index');

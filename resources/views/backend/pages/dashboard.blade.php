@@ -166,6 +166,147 @@
         @endcan
     </div>
 
+    <!-- Additional Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <!-- Agenda Stats -->
+        @can('manage-village-data')
+        <div class="bg-white overflow-hidden shadow rounded-lg hover-scale">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-indigo-500 rounded-md flex items-center justify-center">
+                            <i class="fas fa-calendar-alt text-white text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Total Agenda</dt>
+                            <dd class="flex items-baseline">
+                                <div class="text-2xl font-semibold text-gray-900" id="total-agendas">{{ $stats['total_agendas'] ?? 0 }}</div>
+                                <div class="ml-2 flex items-baseline text-sm font-semibold text-blue-600">
+                                    {{ $stats['upcoming_agendas'] ?? 0 }} mendatang
+                                </div>
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-5 py-3">
+                <div class="text-sm">
+                    <a href="{{ route('backend.agenda.index') }}" class="font-medium text-indigo-700 hover:text-indigo-900">
+                        Kelola agenda
+                    </a>
+                </div>
+            </div>
+        </div>
+        @endcan
+
+        <!-- Budget Stats -->
+        @can('manage-village-budget')
+        <div class="bg-white overflow-hidden shadow rounded-lg hover-scale">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-emerald-500 rounded-md flex items-center justify-center">
+                            <i class="fas fa-money-bill-wave text-white text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Anggaran {{ date('Y') }}</dt>
+                            <dd class="flex items-baseline">
+                                <div class="text-lg font-semibold text-gray-900" id="budget-amount">
+                                    Rp {{ number_format($stats['budget_amount'] ?? 0, 0, ',', '.') }}
+                                </div>
+                            </dd>
+                            <dd class="text-xs text-gray-500 mt-1">
+                                {{ $stats['total_budgets'] ?? 0 }} item anggaran
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-5 py-3">
+                <div class="text-sm">
+                    <a href="{{ route('backend.budget.index') }}" class="font-medium text-emerald-700 hover:text-emerald-900">
+                        Kelola anggaran
+                    </a>
+                </div>
+            </div>
+        </div>
+        @endcan
+
+        <!-- Location Stats -->
+        @can('manage-locations')
+        <div class="bg-white overflow-hidden shadow rounded-lg hover-scale">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-red-500 rounded-md flex items-center justify-center">
+                            <i class="fas fa-map-marker-alt text-white text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Lokasi Tercatat</dt>
+                            <dd class="flex items-baseline">
+                                <div class="text-2xl font-semibold text-gray-900" id="total-locations">{{ $stats['total_locations'] ?? 0 }}</div>
+                                <div class="ml-2 text-sm text-gray-500">lokasi</div>
+                            </dd>
+                            <dd class="text-xs text-gray-500 mt-1">
+                                {{ $stats['locations_with_coordinates'] ?? 0 }} dengan koordinat
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-5 py-3">
+                <div class="text-sm">
+                    <a href="{{ route('backend.locations.index') }}" class="font-medium text-red-700 hover:text-red-900">
+                        Kelola lokasi
+                    </a>
+                </div>
+            </div>
+        </div>
+        @endcan
+
+        <!-- System Health -->
+        <div class="bg-white overflow-hidden shadow rounded-lg hover-scale">
+            <div class="p-5">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-cyan-500 rounded-md flex items-center justify-center">
+                            <i class="fas fa-server text-white text-sm"></i>
+                        </div>
+                    </div>
+                    <div class="ml-5 w-0 flex-1">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Kesehatan Sistem</dt>
+                            <dd class="flex items-baseline">
+                                <div class="text-2xl font-semibold text-green-600">99.9%</div>
+                                <div class="ml-2 text-sm text-green-500">uptime</div>
+                            </dd>
+                            <dd class="text-xs text-gray-500 mt-1">
+                                Laravel {{ app()->version() }}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-gray-50 px-5 py-3">
+                <div class="text-sm">
+                    @can('view-system-info')
+                    <a href="#" onclick="showSystemInfo()" class="font-medium text-cyan-700 hover:text-cyan-900">
+                        Info sistem
+                    </a>
+                    @else
+                    <span class="text-gray-500">Status: Normal</span>
+                    @endcan
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Charts and Recent Activity Row -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Statistics Chart -->
@@ -195,7 +336,7 @@
             </div>
             <div class="flow-root">
                 <ul class="divide-y divide-gray-200">
-                    @forelse($recent_activities ?? [] as $activity)
+                    @forelse($recentActivities ?? [] as $activity)
                     <li class="px-6 py-4">
                         <div class="flex items-center space-x-4">
                             <div class="flex-shrink-0">
@@ -363,27 +504,34 @@
         const monthlyStatsChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: {!! json_encode($chart_data['months'] ?? ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun']) !!},
+                labels: {!! json_encode($chartData['months'] ?? ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun']) !!},
                 datasets: [
                     {
                         label: 'Pengguna Baru',
-                        data: {!! json_encode($chart_data['users'] ?? [5, 12, 8, 15, 22, 18]) !!},
+                        data: {!! json_encode($chartData['users'] ?? [5, 12, 8, 15, 22, 18]) !!},
                         borderColor: 'rgb(59, 130, 246)',
                         backgroundColor: 'rgba(59, 130, 246, 0.1)',
                         tension: 0.4
                     },
                     {
                         label: 'Berita Dipublikasi',
-                        data: {!! json_encode($chart_data['news'] ?? [3, 7, 5, 9, 12, 8]) !!},
+                        data: {!! json_encode($chartData['news'] ?? [3, 7, 5, 9, 12, 8]) !!},
                         borderColor: 'rgb(16, 185, 129)',
                         backgroundColor: 'rgba(16, 185, 129, 0.1)',
                         tension: 0.4
                     },
                     {
                         label: 'Pesan Kontak',
-                        data: {!! json_encode($chart_data['messages'] ?? [8, 15, 12, 18, 25, 20]) !!},
+                        data: {!! json_encode($chartData['messages'] ?? [8, 15, 12, 18, 25, 20]) !!},
                         borderColor: 'rgb(245, 158, 11)',
                         backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Agenda Dibuat',
+                        data: {!! json_encode($chartData['agendas'] ?? [2, 5, 3, 7, 9, 6]) !!},
+                        borderColor: 'rgb(99, 102, 241)',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
                         tension: 0.4
                     }
                 ]
@@ -442,10 +590,73 @@
                 if (data.total_messages !== undefined) {
                     document.getElementById('total-messages').textContent = data.total_messages;
                 }
+                if (data.total_agendas !== undefined) {
+                    document.getElementById('total-agendas').textContent = data.total_agendas;
+                }
+                if (data.total_locations !== undefined) {
+                    document.getElementById('total-locations').textContent = data.total_locations;
+                }
+                if (data.budget_amount !== undefined) {
+                    document.getElementById('budget-amount').textContent = 'Rp ' + new Intl.NumberFormat('id-ID').format(data.budget_amount);
+                }
             })
             .catch(error => {
                 console.log('Stats refresh failed:', error);
             });
+    }
+
+    // Function to show system information
+    function showSystemInfo() {
+        @can('view-system-info')
+        fetch('{{ route('backend.dashboard.system-info') }}')
+            .then(response => response.json())
+            .then(data => {
+                let info = `
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="font-medium">PHP Version:</span>
+                            <span>${data.php_version}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Laravel Version:</span>
+                            <span>${data.laravel_version}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Server Software:</span>
+                            <span>${data.server_software}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Database Version:</span>
+                            <span>${data.database_version}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Memory Limit:</span>
+                            <span>${data.memory_limit}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="font-medium">Max Upload Size:</span>
+                            <span>${data.upload_max_filesize}</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Show modal or alert with system info
+                alert('System Information:\n\n' + 
+                    'PHP Version: ' + data.php_version + '\n' +
+                    'Laravel Version: ' + data.laravel_version + '\n' +
+                    'Server: ' + data.server_software + '\n' +
+                    'Database: ' + data.database_version + '\n' +
+                    'Memory Limit: ' + data.memory_limit + '\n' +
+                    'Max Upload: ' + data.upload_max_filesize
+                );
+            })
+            .catch(error => {
+                console.error('Failed to fetch system info:', error);
+                alert('Gagal mengambil informasi sistem');
+            });
+        @else
+        alert('Anda tidak memiliki izin untuk melihat informasi sistem');
+        @endcan
     }
 </script>
 @endpush

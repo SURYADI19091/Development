@@ -225,7 +225,7 @@
                                         <div class="form-group">
                                             <label for="latitude">Latitude (Opsional)</label>
                                             <input type="number" class="form-control @error('latitude') is-invalid @enderror" 
-                                                   id="latitude" name="latitude" value="{{ old('latitude') }}" 
+                                                   id="latitude" name="latitude" value="{{ old('latitude', '-6.2088') }}" 
                                                    step="0.00000001" min="-90" max="90" 
                                                    placeholder="Contoh: -6.2088">
                                             @error('latitude')
@@ -238,7 +238,7 @@
                                         <div class="form-group">
                                             <label for="longitude">Longitude (Opsional)</label>
                                             <input type="number" class="form-control @error('longitude') is-invalid @enderror" 
-                                                   id="longitude" name="longitude" value="{{ old('longitude') }}" 
+                                                   id="longitude" name="longitude" value="{{ old('longitude', '106.8456') }}" 
                                                    step="0.00000001" min="-180" max="180"
                                                    placeholder="Contoh: 106.8456">
                                             @error('longitude')
@@ -421,6 +421,9 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <!-- Leaflet Draw CSS -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+<!-- Leaflet Geocoder CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+
 <style>
     .map-controls .btn {
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
@@ -460,6 +463,24 @@
         z-index: 1000;
         display: none;
     }
+    /* Style for Geocoder control */
+    .leaflet-control-geocoder {
+        margin-top: 10px; /* Adjust as needed to position above zoom controls */
+        margin-left: 10px;
+        max-width: 300px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        border-radius: 5px;
+    }
+    .leaflet-control-geocoder .geocoder-control-input {
+        border-radius: 5px;
+        border: 1px solid #ccc;
+        padding: 5px 10px;
+        font-size: 14px;
+    }
+    .leaflet-control-geocoder .geocoder-control-suggestions {
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
 </style>
 @endpush
 
@@ -470,6 +491,9 @@
         
 <!-- Fallback Leaflet from different CDN -->
 <script>
+    // Global flag to indicate if Leaflet is ready
+    window.leafletReady = false;
+
     // Check if Leaflet loaded, if not load from alternative CDN
     window.addEventListener('load', function() {
         if (typeof L === 'undefined') {
@@ -479,10 +503,18 @@
             script.onload = function() {
                 console.log('Leaflet fallback loaded successfully');
                 window.leafletReady = true;
+                // Attempt to initialize map after fallback load
+                tryInitMap(); 
+            };
+            script.onerror = function() {
+                console.error('Leaflet fallback failed to load.');
+                showMapError();
             };
             document.head.appendChild(script);
         } else {
             window.leafletReady = true;
+            // Attempt to initialize map if Leaflet is already loaded
+            tryInitMap();
         }
     });
 </script>
@@ -492,6 +524,8 @@
         onerror="console.warn('Leaflet Draw failed to load');"></script>
 <!-- Turf.js for area calculation -->
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<!-- Leaflet Geocoder JavaScript -->
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
 <script>
     let map;
@@ -501,82 +535,62 @@
     let currentPolygon = null;
     let currentPolygonColor = '#2196F3';
     let currentPolygonOpacity = 0.2;
-    let satelliteLayer;
-    let osmLayer;
+    let osmLayer; // Declared globally
+    let satelliteProviders = {}; // Declared globally
+    let currentSatelliteProvider; // Declared globally
     let isFullscreen = false;
     let isSatelliteView = false;
 
     // Initialize Leaflet Map
     function initMap() {
         try {
-            console.log('Starting map initialization...');
+            console.log('Starting full map initialization...');
             
             // Check if Leaflet is available
             if (typeof L === 'undefined') {
-                console.error('Leaflet library not loaded');
+                console.error('Leaflet library not loaded for initMap');
                 showMapError();
                 return;
             }
 
-            // Check if map container exists
             const mapContainer = document.getElementById('map');
             if (!mapContainer) {
-                console.error('Map container not found');
-                setTimeout(initMap, 500); // Retry after 500ms
+                console.error('Map container not found for initMap');
+                showMapError();
                 return;
             }
 
-            // Show loading indicator with timeout
-            mapContainer.innerHTML = '<div class="text-center p-4"><i class="fas fa-spinner fa-spin text-primary"></i> <br><span class="mt-2 d-block">Memuat peta...</span></div>';
-            
-            // Set timeout for loading
-            const loadingTimeout = setTimeout(() => {
-                console.warn('Map loading timeout, trying alternative approach...');
-                showMapError();
-            }, 10000); // 10 second timeout
-
-            // Default location (Indonesia center)
-            const defaultLocation = [-6.2088, 106.8456];
-            
-            // Clear any existing map
+            // Clear any existing map instance
             if (map) {
                 map.remove();
             }
+            
+            // Remove loading indicator if present
+            const loadingDiv = mapContainer.querySelector('.text-center');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
+
+            // Default location (Desa Ciwulan, Telagasari, Karawang)
+            const defaultLocation = [-6.1500, 107.4000]; // Latitude, Longitude
             
             // Initialize map with OpenStreetMap
             map = L.map('map', {
                 center: defaultLocation,
                 zoom: 13,
-                zoomControl: true,
+                zoomControl: true, // Keep default zoom control
                 scrollWheelZoom: true,
-                preferCanvas: false
+                preferCanvas: false // Use DOM for rendering, not canvas
             });
             
-            // Add OpenStreetMap tile layer with fallback servers
-            const osmUrls = [
-                'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-            ];
-            
-            osmLayer = L.tileLayer(osmUrls[0], {
+            // Add OpenStreetMap tile layer
+            osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                 maxZoom: 19,
-                timeout: 10000,
                 errorTileUrl: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjU2IiBoZWlnaHQ9IjI1NiIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjBmMGYwIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9IjAuM2VtIj5Mb2FkaW5nLi4uPC90ZXh0Pjwvc3ZnPg=='
-            });
+            }).addTo(map);
             
-            // Add Satellite layer with fallback options
-            satelliteLayer = L.layerGroup([
-                // Primary: Esri World Imagery
-                L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    attribution: 'Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
-                    maxZoom: 18,
-                    crossOrigin: true
-                })
-            ]);
-            
-            // Initialize satellite providers globally
+            // Initialize satellite providers
             satelliteProviders = {
                 esri: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                     attribution: 'Tiles © Esri',
@@ -596,66 +610,7 @@
                 })
             };
             
-            // Set current satellite provider (Google as default)
-            currentSatelliteProvider = satelliteProviders.google;
-            
-            console.log('Satellite providers initialized:', Object.keys(satelliteProviders));
-            
-            osmLayer.on('tileerror', function(error) {
-                console.warn('Tile loading error:', error);
-            });
-            
-            osmLayer.on('load', function() {
-                console.log('Map tiles loaded successfully');
-            });
-            
-            // Add default OSM layer to map with success callback
-            osmLayer.addTo(map);
-            
-            let tilesLoaded = 0;
-            let tilesLoading = 0;
-            
-            // Track tile loading progress
-            osmLayer.on('loading', function() {
-                console.log('Started loading tiles...');
-            });
-            
-            osmLayer.on('load', function() {
-                console.log('All visible tiles loaded successfully');
-                clearTimeout(loadingTimeout);
-                
-                // Remove loading indicator
-                setTimeout(() => {
-                    const loadingDiv = document.getElementById('map').querySelector('.text-center');
-                    if (loadingDiv) {
-                        loadingDiv.remove();
-                    }
-                }, 500);
-            });
-            
-            osmLayer.on('tileloadstart', function() {
-                tilesLoading++;
-            });
-            
-            osmLayer.on('tileload', function() {
-                tilesLoaded++;
-                console.log(`Tile loaded: ${tilesLoaded}/${tilesLoading}`);
-            });
-            
-            osmLayer.on('tileerror', function(e) {
-                console.warn('Tile failed to load:', e);
-                tilesLoaded++; // Count as processed
-            });
-            
-            // Test satellite layer loading
-            console.log('Testing satellite layer...'); 
-            currentSatelliteProvider.on('tileload', function() {
-                console.log('Satellite tile loaded successfully');
-            });
-            
-            currentSatelliteProvider.on('tileerror', function(e) {
-                console.error('Satellite tile error:', e);
-            });
+            currentSatelliteProvider = satelliteProviders.google; // Default satellite provider
 
             // Initialize marker
             marker = L.marker(defaultLocation, {
@@ -678,6 +633,20 @@
             map.whenReady(function() {
                 console.log('Map is ready and fully loaded');
                 map.invalidateSize(); // Ensure proper sizing
+                // Try to get user's current location (optional)
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        function(position) {
+                            const pos = [position.coords.latitude, position.coords.longitude];
+                            map.setView(pos, 15);
+                            marker.setLatLng(pos);
+                            updateCoordinates(position.coords.latitude, position.coords.longitude);
+                        },
+                        function(error) {
+                            console.log('Geolocation error (optional):', error);
+                        }
+                    );
+                }
             });
             
             // Map error event
@@ -685,22 +654,6 @@
                 console.error('Map error:', e);
                 showMapError();
             });
-
-            // Try to get user's current location (optional)
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    function(position) {
-                        const pos = [position.coords.latitude, position.coords.longitude];
-                        map.setView(pos, 15);
-                        marker.setLatLng(pos);
-                        updateCoordinates(position.coords.latitude, position.coords.longitude);
-                    },
-                    function(error) {
-                        console.log('Geolocation error (optional):', error);
-                        // This is optional, so we don't show error
-                    }
-                );
-            }
 
             // Listen to coordinate input changes
             const latInput = document.getElementById('latitude');
@@ -710,27 +663,31 @@
             if (lngInput) lngInput.addEventListener('input', updateMapFromInputs);
             
             // Initialize drawing controls for area measurement
-            setTimeout(setupDrawingControls, 500); // Delay to ensure all libraries loaded
-            
-            console.log('Map initialized successfully');
-            
-            // Clear loading timeout and hide loading indicator
-            if (typeof loadingTimeout !== 'undefined') {
-                clearTimeout(loadingTimeout);
+            setupDrawingControls();
+
+            // Add Geocoder control
+            if (typeof L.Control.Geocoder !== 'undefined') {
+                L.Control.geocoder({
+                    defaultMarkGeocodedLocation: true,
+                    placeholder: "Cari alamat...",
+                    errorMessage: "Tidak ditemukan.",
+                    collapsed: true, // Start collapsed
+                    position: 'topleft' // Position it above zoom controls
+                })
+                .on('markgeocode', function(e) {
+                    const latlng = e.geocode.center;
+                    placeMarker(latlng); // Update marker and coordinates
+                    map.fitBounds(e.geocode.bbox); // Zoom to result
+                })
+                .addTo(map);
+            } else {
+                console.warn('Leaflet-Control-Geocoder not loaded.');
             }
             
-            setTimeout(() => {
-                const loadingDiv = document.getElementById('map').querySelector('.text-center');
-                if (loadingDiv) {
-                    loadingDiv.style.display = 'none';
-                }
-            }, 1000);
+            console.log('Full map initialized successfully');
             
         } catch (error) {
-            console.error('Error initializing map:', error);
-            if (typeof loadingTimeout !== 'undefined') {
-                clearTimeout(loadingTimeout);
-            }
+            console.error('Error initializing full map:', error);
             showMapError();
         }
     }
@@ -745,14 +702,23 @@
                 return;
             }
             
-            mapContainer.innerHTML = '';
+            // Clear any existing map instance
+            if (map) {
+                map.remove();
+            }
+
+            // Remove loading indicator if present
+            const loadingDiv = mapContainer.querySelector('.text-center');
+            if (loadingDiv) {
+                loadingDiv.remove();
+            }
             
             // Basic map without fancy features
-            const defaultLocation = [-6.2088, 106.8456];
+            const defaultLocation = [-6.1500, 107.4000]; // Latitude, Longitude
             map = L.map('map').setView(defaultLocation, 13);
             
             // Simple OSM layer
-            L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19
             }).addTo(map);
@@ -762,12 +728,16 @@
             
             // Basic events
             marker.on('dragend', function(e) {
-                updateCoordinates(e.target.getLatLng());
+                const position = e.target.getLatLng();
+                updateCoordinates(position.lat, position.lng);
             });
             
             map.on('click', function(e) {
-                marker.setLatLng(e.latlng);
-                updateCoordinates(e.latlng);
+                placeMarker(e.latlng);
+            });
+
+            map.whenReady(function() {
+                map.invalidateSize();
             });
             
             console.log('Simple map initialized successfully');
@@ -781,6 +751,11 @@
     // Setup drawing controls for area measurement
     function setupDrawingControls() {
         try {
+            if (typeof L.Control.Draw === 'undefined') {
+                console.warn('Leaflet Draw not loaded, skipping drawing controls setup.');
+                return;
+            }
+
             // Initialize feature group for drawn items
             drawnItems = new L.FeatureGroup();
             map.addLayer(drawnItems);
@@ -919,7 +894,7 @@
                         <i class="fas fa-exclamation-triangle fa-2x text-warning"></i>
                         <p class="text-muted mt-2 mb-1">Peta tidak dapat dimuat.</p>
                         <small class="text-muted d-block mb-3">Anda masih bisa memasukkan koordinat secara manual.</small>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="retryMapLoad()">
+                        <button type="button" class="btn btn-sm btn-primary mt-2" onclick="retryMapLoad()">
                             <i class="fas fa-redo"></i> Coba Lagi
                         </button>
                     </div>
@@ -933,36 +908,15 @@
         console.log('Retrying map load...');
         const mapDiv = document.getElementById('map');
         if (mapDiv) {
-            mapDiv.innerHTML = '<div class="text-center p-4"><i class="fas fa-spinner fa-spin text-primary"></i><br><span class="mt-2 d-block">Mencoba memuat peta...</span></div>';
+            mapDiv.innerHTML = '<div class="d-flex align-items-center justify-content-center" style="height: 100%;"><div class="text-center p-4"><i class="fas fa-spinner fa-spin text-primary"></i><br><span class="mt-2 d-block">Mencoba memuat peta...</span></div></div>';
             
-            setTimeout(function() {
-                if (typeof L !== 'undefined') {
-                    console.log('Leaflet available, trying simple map...');
-                    try {
-                        initSimpleMap();
-                    } catch (error) {
-                        console.error('Simple map retry failed:', error);
-                        // Try full map as fallback
-                        try {
-                            initMap();
-                        } catch (fullError) {
-                            console.error('Full map retry also failed:', fullError);
-                            showMapError();
-                        }
-                    }
-                } else {
-                    console.error('Leaflet still not available');
-                    showMapError();
-                }
-            }, 1500);
+            // Reset map variable to null to force re-initialization
+            map = null; 
+            tryInitMap();
         }
     }
 
-
-
-
-
-    // Fallback area calculation using spherical law of cosines
+    // Fallback area calculation using spherical law of cosines (not used if Turf.js or L.GeometryUtil is available)
     function calculatePolygonArea(latlngs) {
         const earthRadius = 6378137; // Earth's radius in meters
         let area = 0;
@@ -982,8 +936,6 @@
         area = Math.abs(area * earthRadius * earthRadius / 2);
         return area;
     }
-
-
 
     // Clear area measurement
     function clearAreaMeasurement() {
@@ -1204,9 +1156,6 @@
             }
         }, 100);
     }
-
-            }
-    }
     
     // Change satellite provider
     function changeSatelliteProvider(provider) {
@@ -1245,6 +1194,7 @@
     // Toggle satellite view
     function toggleSatellite() {
         const satelliteBtn = document.getElementById('satellite-btn');
+        const statusElement = document.getElementById('satellite-status');
         
         try {
             if (!isSatelliteView) {
@@ -1257,17 +1207,16 @@
                 
                 // Try to add satellite layer
                 if (currentSatelliteProvider) {
-                    try {
-                        currentSatelliteProvider.addTo(map);
-                        console.log('Satellite layer added successfully');
-                    } catch (error) {
-                        console.error('Error adding satellite layer:', error);
-                        // Fallback to Esri if Google fails
-                        if (currentSatelliteProvider !== satelliteProviders.esri) {
-                            currentSatelliteProvider = satelliteProviders.esri;
-                            currentSatelliteProvider.addTo(map);
-                        }
+                    currentSatelliteProvider.addTo(map);
+                    console.log('Satellite layer added successfully');
+                } else {
+                    console.warn('No satellite provider selected or available.');
+                    // Fallback to OSM if no satellite provider is set
+                    if (osmLayer && !map.hasLayer(osmLayer)) {
+                        osmLayer.addTo(map);
                     }
+                    alert('Tidak ada penyedia satelit yang tersedia.');
+                    return;
                 }
                 
                 satelliteBtn.innerHTML = '<i class="fas fa-map"></i>';
@@ -1277,7 +1226,6 @@
                 isSatelliteView = true;
                 
                 // Show notification and update status
-                const statusElement = document.getElementById('satellite-status');
                 if (statusElement) {
                     statusElement.innerHTML = '<i class="fas fa-satellite text-info"></i> Satellite Active';
                     statusElement.style.display = 'block';
@@ -1307,7 +1255,6 @@
                 isSatelliteView = false;
                 
                 // Show notification and update status
-                const statusElement = document.getElementById('satellite-status');
                 if (statusElement) {
                     statusElement.innerHTML = '<i class="fas fa-map text-success"></i> Street Map Active';
                     statusElement.style.display = 'block';
@@ -1365,7 +1312,8 @@
         .then(data => {
             if (data && data.display_name) {
                 const addressField = document.getElementById('address');
-                if (addressField && !addressField.value) {
+                // Only update address if it's empty
+                if (addressField && !addressField.value.trim()) { 
                     addressField.value = data.display_name;
                 }
             }
@@ -1373,7 +1321,9 @@
         .catch(error => {
             console.log('Reverse geocoding failed:', error);
         });
-    }    // Get current location function
+    }    
+    
+    // Get current location function
     function getCurrentLocation() {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(function(position) {
@@ -1414,65 +1364,66 @@
     }
 
     // Preview image function
-    document.getElementById('image').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                // Create or update image preview
-                let preview = document.getElementById('image-preview');
-                if (!preview) {
-                    preview = document.createElement('img');
-                    preview.id = 'image-preview';
-                    preview.className = 'img-thumbnail mt-2';
-                    preview.style.maxWidth = '200px';
-                    document.getElementById('image').parentNode.appendChild(preview);
+    document.addEventListener('DOMContentLoaded', function() {
+        const imageInput = document.getElementById('image');
+        if (imageInput) {
+            imageInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        // Create or update image preview
+                        let preview = document.getElementById('image-preview');
+                        if (!preview) {
+                            preview = document.createElement('img');
+                            preview.id = 'image-preview';
+                            preview.className = 'img-thumbnail mt-2';
+                            preview.style.maxWidth = '200px';
+                            imageInput.parentNode.appendChild(preview);
+                        }
+                        preview.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
                 }
-                preview.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
+            });
         }
     });
 
-    // Check if Leaflet map initialized successfully
-    setTimeout(function() {
-        if (!map) {
-            console.warn('Map failed to initialize');
-            showMapError();
-        }
-    }, 5000); // 5 second timeout
-    
-    // Add button to get current location
+    // Add button to get current location and clear coordinates
     document.addEventListener('DOMContentLoaded', function() {
         const latitudeField = document.getElementById('latitude');
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'mt-2';
-        
-        const currentLocationBtn = document.createElement('button');
-        currentLocationBtn.type = 'button';
-        currentLocationBtn.className = 'btn btn-sm btn-info mr-2';
-        currentLocationBtn.innerHTML = '<i class="fas fa-location-arrow"></i> Lokasi Saat Ini';
-        currentLocationBtn.onclick = getCurrentLocation;
-        
-        const clearLocationBtn = document.createElement('button');
-        clearLocationBtn.type = 'button';
-        clearLocationBtn.className = 'btn btn-sm btn-secondary';
-        clearLocationBtn.innerHTML = '<i class="fas fa-times"></i> Hapus Koordinat';
-        clearLocationBtn.onclick = function() {
-            document.getElementById('latitude').value = '';
-            document.getElementById('longitude').value = '';
-            // Reset map to default location
-            const defaultLocation = [-6.2088, 106.8456];
-            map.setView(defaultLocation, 13);
-            marker.setLatLng(defaultLocation);
-        };
-        
-        buttonContainer.appendChild(currentLocationBtn);
-        buttonContainer.appendChild(clearLocationBtn);
-        latitudeField.parentNode.appendChild(buttonContainer);
+        if (latitudeField) {
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'mt-2';
+            
+            const currentLocationBtn = document.createElement('button');
+            currentLocationBtn.type = 'button';
+            currentLocationBtn.className = 'btn btn-sm btn-info mr-2';
+            currentLocationBtn.innerHTML = '<i class="fas fa-location-arrow"></i> Lokasi Saat Ini';
+            currentLocationBtn.onclick = getCurrentLocation;
+            
+            const clearLocationBtn = document.createElement('button');
+            clearLocationBtn.type = 'button';
+            clearLocationBtn.className = 'btn btn-sm btn-secondary';
+            clearLocationBtn.innerHTML = '<i class="fas fa-times"></i> Hapus Koordinat';
+            clearLocationBtn.onclick = function() {
+                document.getElementById('latitude').value = '';
+                document.getElementById('longitude').value = '';
+                // Reset map to default location
+                if (map && marker) {
+                    const defaultLocation = [-6.1500, 107.4000]; // Latitude, Longitude
+                    map.setView(defaultLocation, 13);
+                    marker.setLatLng(defaultLocation);
+                }
+            };
+            
+            buttonContainer.appendChild(currentLocationBtn);
+            buttonContainer.appendChild(clearLocationBtn);
+            latitudeField.parentNode.appendChild(buttonContainer);
+        }
     });
 
-    // Address search functionality using Nominatim
+    // Address search functionality using Nominatim (This is for the form field, not the map control)
     function searchAddress() {
         const addressField = document.getElementById('address');
         const address = addressField.value.trim();
@@ -1498,8 +1449,10 @@
                 const lng = parseFloat(result.lon);
                 
                 // Update map and marker
-                map.setView([lat, lng], 15);
-                marker.setLatLng([lat, lng]);
+                if (map && marker) {
+                    map.setView([lat, lng], 15);
+                    marker.setLatLng([lat, lng]);
+                }
                 
                 // Update coordinate inputs
                 updateCoordinates(lat, lng);
@@ -1522,7 +1475,7 @@
 
     // Initialize when DOM is ready
     document.addEventListener('DOMContentLoaded', function() {
-        // Add address search functionality
+        // Add address search functionality (for the form field)
         const addressField = document.getElementById('address');
         if (addressField) {
             // Add search button for address
@@ -1538,47 +1491,32 @@
         // Add area measurement controls
         const areaSizeField = document.getElementById('area_size');
         if (areaSizeField) {
-            const buttonContainer = document.createElement('div');
-            buttonContainer.className = 'mt-2';
-            
-            const clearAreaBtn = document.createElement('button');
-            clearAreaBtn.type = 'button';
-            clearAreaBtn.className = 'btn btn-sm btn-warning mr-2';
-            clearAreaBtn.innerHTML = '<i class="fas fa-eraser"></i> Hapus Pengukuran';
-            clearAreaBtn.onclick = clearAreaMeasurement;
-            
-            const saveColorBtn = document.createElement('button');
-            saveColorBtn.type = 'button';
-            saveColorBtn.className = 'btn btn-sm btn-success';
-            saveColorBtn.innerHTML = '<i class="fas fa-save"></i> Simpan Warna';
-            saveColorBtn.onclick = savePolygonSettings;
-            
-            buttonContainer.appendChild(clearAreaBtn);
-            buttonContainer.appendChild(saveColorBtn);
-            areaSizeField.parentNode.appendChild(buttonContainer);
+            // The buttons for clear and save color are already in the HTML, no need to re-create
+            // Ensure the event listeners are correctly bound
         }
 
         // Load saved polygon settings
         loadPolygonSettings();
 
         // Simple and reliable map initialization
-        console.log('Starting map initialization...');
+        console.log('Starting map initialization process...');
         
         let initAttempts = 0;
-        const maxInitAttempts = 10;
-        
-        function tryInitMap() {
+        const maxInitAttempts = 10; // Max attempts to initialize map
+
+        // Function to try initializing the map
+        window.tryInitMap = function() {
             initAttempts++;
             console.log('Map init attempt:', initAttempts);
             
-            if (typeof L !== 'undefined') {
-                console.log('Leaflet available, initializing map...');
+            if (window.leafletReady && typeof L !== 'undefined') {
+                console.log('Leaflet available, attempting full map initialization...');
                 try {
                     initMap();
                     console.log('Map initialized successfully!');
                 } catch (error) {
                     console.error('Full map init failed:', error);
-                    console.log('Trying simple map...');
+                    console.log('Trying simple map as fallback...');
                     try {
                         initSimpleMap();
                         console.log('Simple map initialized successfully!');
@@ -1589,15 +1527,16 @@
                 }
             } else if (initAttempts < maxInitAttempts) {
                 console.log('Leaflet not ready, waiting... (attempt ' + initAttempts + '/' + maxInitAttempts + ')');
-                setTimeout(tryInitMap, 1000);
+                setTimeout(window.tryInitMap, 1000); // Retry after 1 second
             } else {
-                console.error('Leaflet failed to load after', maxInitAttempts, 'attempts');
+                console.error('Leaflet failed to load after', maxInitAttempts, 'attempts. Showing error.');
                 showMapError();
             }
-        }
+        };
         
-        // Start trying to initialize
-        setTimeout(tryInitMap, 500);
+        // Start trying to initialize the map after a short delay to ensure DOM is ready
+        setTimeout(window.tryInitMap, 500);
     });
 </script>
 @endpush
+```

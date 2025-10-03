@@ -11,6 +11,9 @@ use App\Models\User;
 use App\Models\News;
 use App\Models\ContactMessage;
 use App\Models\PopulationData;
+use App\Models\Agenda;
+use App\Models\VillageBudget;
+use App\Models\Location;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
@@ -84,6 +87,25 @@ class DashboardController extends Controller
                 $stats['unread_messages'] = ContactMessage::where('is_read', false)->count();
             }
 
+            // Agenda statistics
+            if (Gate::allows('manage-village-data')) {
+                $stats['total_agendas'] = Agenda::count();
+                $stats['upcoming_agendas'] = Agenda::where('date', '>=', Carbon::now())->count();
+            }
+
+            // Budget statistics
+            if (Gate::allows('manage-village-budget')) {
+                $currentYear = Carbon::now()->year;
+                $stats['total_budgets'] = VillageBudget::whereYear('year', $currentYear)->count();
+                $stats['budget_amount'] = VillageBudget::whereYear('year', $currentYear)->sum('amount') ?? 0;
+            }
+
+            // Location statistics
+            if (Gate::allows('manage-locations')) {
+                $stats['total_locations'] = Location::count();
+                $stats['locations_with_coordinates'] = Location::whereNotNull('latitude')->whereNotNull('longitude')->count();
+            }
+
             // System statistics
             $stats['storage_used'] = $this->getStorageUsed();
             $stats['storage_total'] = '1 GB'; // Configurable
@@ -101,6 +123,12 @@ class DashboardController extends Controller
                 'news_this_month' => 0,
                 'total_messages' => 0,
                 'unread_messages' => 0,
+                'total_agendas' => 0,
+                'upcoming_agendas' => 0,
+                'total_budgets' => 0,
+                'budget_amount' => 0,
+                'total_locations' => 0,
+                'locations_with_coordinates' => 0,
                 'storage_used' => '0 MB',
                 'storage_total' => '1 GB',
                 'storage_percentage' => 0,
@@ -120,7 +148,8 @@ class DashboardController extends Controller
             'months' => [],
             'users' => [],
             'news' => [],
-            'messages' => []
+            'messages' => [],
+            'agendas' => []
         ];
 
         try {
@@ -157,6 +186,15 @@ class DashboardController extends Controller
                 } else {
                     $chartData['messages'][] = 0;
                 }
+
+                // Agenda data
+                if (Gate::allows('manage-village-data')) {
+                    $chartData['agendas'][] = Agenda::whereMonth('created_at', $date->month)
+                        ->whereYear('created_at', $date->year)
+                        ->count();
+                } else {
+                    $chartData['agendas'][] = 0;
+                }
             }
         } catch (\Exception $e) {
             \Log::error('Chart data error: ' . $e->getMessage());
@@ -165,7 +203,8 @@ class DashboardController extends Controller
                 'months' => ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'],
                 'users' => [0, 0, 0, 0, 0, 0],
                 'news' => [0, 0, 0, 0, 0, 0],
-                'messages' => [0, 0, 0, 0, 0, 0]
+                'messages' => [0, 0, 0, 0, 0, 0],
+                'agendas' => [0, 0, 0, 0, 0, 0]
             ];
         }
 
@@ -218,6 +257,34 @@ class DashboardController extends Controller
                         'time' => $message->created_at->diffForHumans(),
                         'icon' => 'fas fa-envelope',
                         'color' => 'orange'
+                    ];
+                }
+            }
+
+            // Recent agendas
+            if (Gate::allows('manage-village-data')) {
+                $recentAgendas = Agenda::latest()->take(2)->get();
+                foreach ($recentAgendas as $agenda) {
+                    $activities[] = [
+                        'title' => 'Agenda baru ditambahkan',
+                        'description' => \Str::limit($agenda->title, 40),
+                        'time' => $agenda->created_at->diffForHumans(),
+                        'icon' => 'fas fa-calendar-plus',
+                        'color' => 'purple'
+                    ];
+                }
+            }
+
+            // Recent budget entries
+            if (Gate::allows('manage-village-budget')) {
+                $recentBudgets = VillageBudget::latest()->take(1)->get();
+                foreach ($recentBudgets as $budget) {
+                    $activities[] = [
+                        'title' => 'Anggaran baru diperbarui',
+                        'description' => $budget->item_name . ' - Rp ' . number_format($budget->amount, 0, ',', '.'),
+                        'time' => $budget->created_at->diffForHumans(),
+                        'icon' => 'fas fa-coins',
+                        'color' => 'emerald'
                     ];
                 }
             }

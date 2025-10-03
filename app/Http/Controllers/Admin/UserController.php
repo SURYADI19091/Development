@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use App\Models\User;
 use Carbon\Carbon;
@@ -144,10 +145,12 @@ class UserController extends Controller
             }
 
             // Log activity
-            activity()
-                ->causedBy(Auth::user())
-                ->performedOn($user)
-                ->log('User created: ' . $user->name);
+            Log::info('User created', [
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'created_by' => Auth::user()->id,
+                'created_by_name' => Auth::user()->name
+            ]);
 
             if ($request->ajax()) {
                 return response()->json([
@@ -256,10 +259,12 @@ class UserController extends Controller
             $user->update($validated);
 
             // Log activity
-            activity()
-                ->causedBy(Auth::user())
-                ->performedOn($user)
-                ->log('User updated: ' . $user->name);
+            Log::info('User updated', [
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'updated_by' => Auth::user()->id,
+                'updated_by_name' => Auth::user()->name
+            ]);
 
             if ($request->ajax()) {
                 return response()->json([
@@ -314,9 +319,11 @@ class UserController extends Controller
             $user->delete();
 
             // Log activity
-            activity()
-                ->causedBy(Auth::user())
-                ->log('User deleted: ' . $userName);
+            Log::info('User deleted', [
+                'user_name' => $userName,
+                'deleted_by' => Auth::user()->id,
+                'deleted_by_name' => Auth::user()->name
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -354,10 +361,14 @@ class UserController extends Controller
             ]);
 
             // Log activity
-            activity()
-                ->causedBy(Auth::user())
-                ->performedOn($user)
-                ->log("User status changed from {$oldStatus} to {$validated['status']}");
+            Log::info('User status changed', [
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'old_status' => $oldStatus,
+                'new_status' => $validated['status'],
+                'changed_by' => Auth::user()->id,
+                'changed_by_name' => Auth::user()->name
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -424,9 +435,12 @@ class UserController extends Controller
             }
 
             // Log activity
-            activity()
-                ->causedBy(Auth::user())
-                ->log("Bulk action '{$validated['action']}' performed on {$count} users");
+            Log::info('Bulk action performed', [
+                'action' => $validated['action'],
+                'users_count' => $count,
+                'performed_by' => Auth::user()->id,
+                'performed_by_name' => Auth::user()->name
+            ]);
 
             return response()->json([
                 'success' => true,

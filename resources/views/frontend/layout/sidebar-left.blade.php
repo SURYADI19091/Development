@@ -19,7 +19,7 @@
     <div class="p-3 sm:p-4">
         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-4 sm:mb-6">
             <!-- Row 1 -->
-            <a href="/profile" class="bg-blue-500 hover:bg-blue-600 text-white p-2 sm:p-4 rounded-lg text-center cursor-pointer transition-colors block">
+            <a href="/profile-desa" class="bg-blue-500 hover:bg-blue-600 text-white p-2 sm:p-4 rounded-lg text-center cursor-pointer transition-colors block">
                 <i class="fas fa-users text-lg sm:text-2xl mb-1 sm:mb-2"></i>
                 <p class="text-xs font-medium">Identitas Desa</p>
             </a>
@@ -76,7 +76,7 @@
                     <i class="fas fa-chevron-down transform transition-transform duration-200" id="profil-icon"></i>
                 </div>
                 <div class="hidden bg-gray-50 pl-4" id="profil-dropdown">
-                    <a href="/profile" class="p-2 sm:p-3 hover:bg-gray-200 cursor-pointer border-b border-gray-300 block">
+                    <a href="/profile-desa" class="p-2 sm:p-3 hover:bg-gray-200 cursor-pointer border-b border-gray-300 block">
                         <p class="text-gray-700 text-xs sm:text-sm">Profile</p>
                     </a>
                     <a href="/sejarah" class="p-2 sm:p-3 hover:bg-gray-200 cursor-pointer border-b border-gray-300 block">
