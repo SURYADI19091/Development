@@ -464,10 +464,32 @@
 @endpush
 
 @push('scripts')
-<!-- Leaflet JavaScript -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<!-- Leaflet JavaScript with fallback -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" 
+        onerror="this.onerror=null; this.src='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';"></script>
+        
+<!-- Fallback Leaflet from different CDN -->
+<script>
+    // Check if Leaflet loaded, if not load from alternative CDN
+    window.addEventListener('load', function() {
+        if (typeof L === 'undefined') {
+            console.log('Loading Leaflet from fallback CDN...');
+            var script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
+            script.onload = function() {
+                console.log('Leaflet fallback loaded successfully');
+                window.leafletReady = true;
+            };
+            document.head.appendChild(script);
+        } else {
+            window.leafletReady = true;
+        }
+    });
+</script>
+
 <!-- Leaflet Draw JavaScript -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js" 
+        onerror="console.warn('Leaflet Draw failed to load');"></script>
 <!-- Turf.js for area calculation -->
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
@@ -908,21 +930,31 @@
 
     // Retry map loading
     function retryMapLoad() {
+        console.log('Retrying map load...');
         const mapDiv = document.getElementById('map');
         if (mapDiv) {
-            mapDiv.innerHTML = '<div class="text-center p-4"><i class="fas fa-spinner fa-spin"></i> Memuat peta...</div>';
+            mapDiv.innerHTML = '<div class="text-center p-4"><i class="fas fa-spinner fa-spin text-primary"></i><br><span class="mt-2 d-block">Mencoba memuat peta...</span></div>';
+            
             setTimeout(function() {
-                try {
-                    if (typeof L !== 'undefined') {
-                        initMap();
-                    } else {
-                        throw new Error('Leaflet library not available');
+                if (typeof L !== 'undefined') {
+                    console.log('Leaflet available, trying simple map...');
+                    try {
+                        initSimpleMap();
+                    } catch (error) {
+                        console.error('Simple map retry failed:', error);
+                        // Try full map as fallback
+                        try {
+                            initMap();
+                        } catch (fullError) {
+                            console.error('Full map retry also failed:', fullError);
+                            showMapError();
+                        }
                     }
-                } catch (error) {
-                    console.error('Retry failed:', error);
+                } else {
+                    console.error('Leaflet still not available');
                     showMapError();
                 }
-            }, 1000);
+            }, 1500);
         }
     }
 
@@ -1529,65 +1561,43 @@
         // Load saved polygon settings
         loadPolygonSettings();
 
-        // Wait for DOM and libraries to be ready
-        function waitForLibraries() {
-            console.log('Checking for required libraries...');
-            
-            // Check if Leaflet is available (turf is optional)
-            if (typeof L !== 'undefined') {
-                console.log('Leaflet loaded, initializing map...');
-                try {
-                    initMap();
-                } catch (error) {
-                    console.error('Error during map initialization:', error);
-                    showMapError();
-                }
-            } else {
-                console.log('Leaflet not ready yet, waiting...');
-                setTimeout(waitForLibraries, 200);
-            }
-        }
+        // Simple and reliable map initialization
+        console.log('Starting map initialization...');
         
-        // Multiple initialization attempts
         let initAttempts = 0;
-        const maxAttempts = 3;
+        const maxInitAttempts = 10;
         
         function tryInitMap() {
             initAttempts++;
-            console.log('Map initialization attempt:', initAttempts);
+            console.log('Map init attempt:', initAttempts);
             
             if (typeof L !== 'undefined') {
-                waitForLibraries();
-            } else if (initAttempts < maxAttempts) {
-                console.log('Retrying in 1 second...');
-                setTimeout(tryInitMap, 1000);
-            } else {
-                console.warn('Full map initialization failed, trying simple fallback...');
-                setTimeout(() => {
-                    if (typeof L !== 'undefined') {
+                console.log('Leaflet available, initializing map...');
+                try {
+                    initMap();
+                    console.log('Map initialized successfully!');
+                } catch (error) {
+                    console.error('Full map init failed:', error);
+                    console.log('Trying simple map...');
+                    try {
                         initSimpleMap();
-                    } else {
+                        console.log('Simple map initialized successfully!');
+                    } catch (simpleError) {
+                        console.error('Simple map also failed:', simpleError);
                         showMapError();
                     }
-                }, 500);
+                }
+            } else if (initAttempts < maxInitAttempts) {
+                console.log('Leaflet not ready, waiting... (attempt ' + initAttempts + '/' + maxInitAttempts + ')');
+                setTimeout(tryInitMap, 1000);
+            } else {
+                console.error('Leaflet failed to load after', maxInitAttempts, 'attempts');
+                showMapError();
             }
         }
         
-        // Start initialization
-        tryInitMap();
-        
-        // Ultimate fallback timeout
-        setTimeout(function() {
-            if (!map) {
-                console.error('All map initialization attempts failed');
-                if (typeof L !== 'undefined') {
-                    console.log('Attempting final simple map...');
-                    initSimpleMap();
-                } else {
-                    showMapError();
-                }
-            }
-        }, 15000);
+        // Start trying to initialize
+        setTimeout(tryInitMap, 500);
     });
 </script>
 @endpush
