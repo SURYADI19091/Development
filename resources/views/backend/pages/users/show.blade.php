@@ -22,8 +22,8 @@
                         <h3 class="profile-username text-center">{{ $user->name }}</h3>
 
                         <p class="text-muted text-center">
-                            <span class="badge badge-{{ $user->status === 'active' ? 'success' : ($user->status === 'inactive' ? 'secondary' : 'warning') }}">
-                                {{ ucfirst($user->status) }}
+                            <span class="badge badge-{{ $user->is_active ? 'success' : 'secondary' }}">
+                                {{ $user->is_active ? 'Aktif' : 'Tidak Aktif' }}
                             </span>
                         </p>
 
@@ -58,12 +58,12 @@
                                 </a>
                             </div>
                             <div class="col-6">
-                                @if($user->status === 'active')
-                                    <button class="btn btn-warning btn-block" onclick="changeStatus('{{ $user->id }}', 'inactive')">
+                                @if($user->is_active)
+                                    <button class="btn btn-warning btn-block" onclick="toggleStatus('{{ $user->id }}')">
                                         <i class="fas fa-pause mr-1"></i>Nonaktifkan
                                     </button>
                                 @else
-                                    <button class="btn btn-success btn-block" onclick="changeStatus('{{ $user->id }}', 'active')">
+                                    <button class="btn btn-success btn-block" onclick="toggleStatus('{{ $user->id }}')">
                                         <i class="fas fa-play mr-1"></i>Aktifkan
                                     </button>
                                 @endif
@@ -154,7 +154,7 @@
                                     <div class="col-md-6">
                                         <div class="form-group">
                                             <label>Status</label>
-                                            <input type="text" class="form-control" value="{{ ucfirst($user->status) }}" readonly>
+                                            <input type="text" class="form-control" value="{{ $user->is_active ? 'Aktif' : 'Tidak Aktif' }}" readonly>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -231,10 +231,9 @@
                                     <div class="form-group row">
                                         <label for="change_status" class="col-sm-3 col-form-label">Status Akun</label>
                                         <div class="col-sm-9">
-                                            <select class="form-control" id="change_status" name="status">
-                                                <option value="active" {{ $user->status === 'active' ? 'selected' : '' }}>Aktif</option>
-                                                <option value="inactive" {{ $user->status === 'inactive' ? 'selected' : '' }}>Tidak Aktif</option>
-                                                <option value="suspended" {{ $user->status === 'suspended' ? 'selected' : '' }}>Suspended</option>
+                                            <select class="form-control" id="change_status" name="is_active">
+                                                <option value="1" {{ $user->is_active ? 'selected' : '' }}>Aktif</option>
+                                                <option value="0" {{ !$user->is_active ? 'selected' : '' }}>Tidak Aktif</option>
                                             </select>
                                         </div>
                                     </div>
@@ -322,27 +321,67 @@
 @push('scripts')
 <script>
     // Change user status
-    function changeStatus(userId, status) {
+    function toggleStatus(userId) {
         if (confirm('Apakah Anda yakin ingin mengubah status pengguna ini?')) {
-            fetch(`/admin/users/${userId}/status`, {
-                method: 'PATCH',
+            // Show loading state
+            const buttons = document.querySelectorAll('[onclick^="toggleStatus"]');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Memproses...';
+            });
+            
+            fetch(`/admin/users/${userId}/toggle-status`, {
+                method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                },
-                body: JSON.stringify({ status: status })
+                }
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('Response status:', response.status);
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`HTTP ${response.status}: ${text}`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Response data:', data);
                 if (data.success) {
-                    location.reload();
+                    // Success - show message and reload
+                    alert(data.message || 'Status berhasil diubah');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 500);
                 } else {
-                    alert('Terjadi kesalahan: ' + data.message);
+                    // Error from server
+                    alert(data.message || 'Terjadi kesalahan saat mengubah status');
+                    // Restore button state
+                    buttons.forEach(btn => {
+                        btn.disabled = false;
+                        const isActive = btn.classList.contains('btn-warning');
+                        if (isActive) {
+                            btn.innerHTML = '<i class="fas fa-pause mr-1"></i>Nonaktifkan';
+                        } else {
+                            btn.innerHTML = '<i class="fas fa-play mr-1"></i>Aktifkan';
+                        }
+                    });
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('Terjadi kesalahan saat mengubah status');
+                console.error('Error details:', error);
+                // Restore button state
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    const isActive = btn.classList.contains('btn-warning');
+                    if (isActive) {
+                        btn.innerHTML = '<i class="fas fa-pause mr-1"></i>Nonaktifkan';
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-play mr-1"></i>Aktifkan';
+                    }
+                });
+                alert('Terjadi kesalahan saat mengubah status: ' + error.message);
             });
         }
     }
@@ -393,18 +432,23 @@
             },
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.success) {
                 alert('Pengaturan berhasil disimpan');
                 location.reload();
             } else {
-                alert('Terjadi kesalahan: ' + data.message);
+                alert('Terjadi kesalahan: ' + (data.message || 'Gagal menyimpan pengaturan'));
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Terjadi kesalahan saat menyimpan pengaturan');
+            alert('Terjadi kesalahan saat menyimpan pengaturan: ' + error.message);
         });
     });
 </script>

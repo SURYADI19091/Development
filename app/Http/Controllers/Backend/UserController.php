@@ -162,11 +162,41 @@ class UserController extends Controller
 
     public function toggleStatus(Request $request, $id)
     {
-        $user = User::findOrFail($id);
-        $user->is_active = !$user->is_active;
-        $user->save();
+        try {
+            $user = User::findOrFail($id);
+            $oldStatus = $user->is_active ? 'active' : 'inactive';
+            $user->is_active = !$user->is_active;
+            $user->save();
 
-        $status = $user->is_active ? 'activated' : 'deactivated';
-        return response()->json(['message' => "User {$status} successfully!"]);
+            $newStatus = $user->is_active ? 'active' : 'inactive';
+            $statusText = $user->is_active ? 'diaktifkan' : 'dinonaktifkan';
+
+            // Log the status change
+            \Log::info('User status changed', [
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'old_status' => $oldStatus,
+                'new_status' => $newStatus,
+                'changed_by' => auth()->id(),
+                'changed_by_name' => auth()->user()->name ?? 'System'
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => "Status pengguna {$user->name} berhasil {$statusText}",
+                'new_status' => $user->is_active
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Toggle user status error', [
+                'user_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

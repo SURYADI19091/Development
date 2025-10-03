@@ -91,25 +91,6 @@
                 </div>
             </div>
 
-            <!-- Lembaga Dropdown -->
-            <div class="border-b border-gray-200">
-                <div class="p-2 sm:p-3 hover:bg-gray-100 cursor-pointer flex justify-between items-center" onclick="toggleDropdown('lembaga')">
-                    <p class="font-medium text-gray-800 text-sm sm:text-base">Lembaga</p>
-                    <i class="fas fa-chevron-down transform transition-transform duration-200" id="lembaga-icon"></i>
-                </div>
-                <div class="hidden bg-gray-50 pl-4" id="lembaga-dropdown">
-                    <div class="p-2 sm:p-3 hover:bg-gray-200 cursor-pointer border-b border-gray-300">
-                        <p class="text-gray-700 text-xs sm:text-sm">BPD</p>
-                    </div>
-                    <div class="p-2 sm:p-3 hover:bg-gray-200 cursor-pointer border-b border-gray-300">
-                        <p class="text-gray-700 text-xs sm:text-sm">PKK</p>
-                    </div>
-                    <div class="p-2 sm:p-3 hover:bg-gray-200 cursor-pointer">
-                        <p class="text-gray-700 text-xs sm:text-sm">Karang Taruna</p>
-                    </div>
-                </div>
-            </div>
-
             <!-- Statistik -->
             <a href="/statistik-penduduk" class="p-2 sm:p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-200 block">
                 <p class="font-medium text-gray-800 text-sm sm:text-base">Statistik</p>
